@@ -3,6 +3,7 @@ import { CONFIG } from '../config.js';
 import * as auth from './auth.js';
 import * as api  from './api.js';
 import * as ui   from './ui.js';
+import * as llm  from './llm.js';
 
 // Expose auth helpers for ui.js (avoids circular imports)
 window.__liAuth = { getExpiryDate: auth.getExpiryDate };
@@ -166,7 +167,7 @@ function initComposer(authorSub) {
   ui.initCharCounter('post-text', 'char-count');
   ui.hidePostResult();
 
-  const postBtn = document.getElementById('btn-post');
+  const postBtn  = document.getElementById('btn-post');
   const textarea = document.getElementById('post-text');
 
   postBtn?.addEventListener('click', async () => {
@@ -185,6 +186,8 @@ function initComposer(authorSub) {
       document.getElementById('char-count').textContent = '0';
       document.getElementById('char-counter')?.classList.remove('warn', 'danger');
       postBtn.disabled = true;
+      // Hide regen bar after successful post
+      document.getElementById('ai-regen-bar').hidden = true;
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
@@ -194,6 +197,183 @@ function initComposer(authorSub) {
       postBtn.disabled = !(textarea?.value?.trim());
     }
   });
+
+  // Wire AI settings modal + generation panel
+  initAiSettings();
+  initAiPanel();
+}
+
+// ── AI Settings Modal ────────────────────────────────────────
+
+function initAiSettings() {
+  const modal          = document.getElementById('modal-ai-settings');
+  const providerSelect = document.getElementById('ai-provider-select');
+  const modelSelect    = document.getElementById('ai-model-select');
+  const keyInput       = document.getElementById('ai-apikey-input');
+  const eyeIcon        = document.getElementById('apikey-eye-icon');
+  const statusEl       = document.getElementById('ai-status');
+
+  // Populate provider dropdown
+  ui.populateSelect(
+    providerSelect,
+    llm.getProviderList().map(p => ({ value: p.id, label: p.label })),
+    llm.getConfig().provider
+  );
+
+  function syncModelDropdown(provider) {
+    const models = llm.getModelsForProvider(provider);
+    const { model } = llm.getConfig();
+    ui.populateSelect(
+      modelSelect,
+      models.map(m => ({ value: m, label: m })),
+      model
+    );
+  }
+
+  function prefillForProvider(provider) {
+    syncModelDropdown(provider);
+    keyInput.value = llm.getKeyForProvider(provider);
+    if (statusEl) statusEl.hidden = true;
+  }
+
+  // Open modal from toolbar AI button
+  ['btn-ai-toolbar', 'btn-ai-settings-open', 'btn-ai-setup-link'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => {
+      const { provider } = llm.getConfig();
+      prefillForProvider(provider);
+      providerSelect.value = provider;
+      ui.openModal('modal-ai-settings');
+    });
+  });
+
+  // Provider change → refresh model list + prefill key
+  providerSelect?.addEventListener('change', () => {
+    prefillForProvider(providerSelect.value);
+  });
+
+  // Show/hide API key
+  document.getElementById('btn-apikey-toggle')?.addEventListener('click', () => {
+    const isPassword = keyInput.type === 'password';
+    keyInput.type = isPassword ? 'text' : 'password';
+    eyeIcon.className = isPassword ? 'ph ph-eye-slash' : 'ph ph-eye';
+  });
+
+  // Close buttons
+  ['btn-modal-close', 'btn-modal-cancel'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => ui.closeModal('modal-ai-settings'));
+  });
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) ui.closeModal('modal-ai-settings');
+  });
+
+  // Save
+  document.getElementById('btn-modal-save')?.addEventListener('click', () => {
+    const provider = providerSelect.value;
+    const model    = modelSelect.value;
+    const key      = keyInput.value.trim();
+
+    if (!key) {
+      if (statusEl) {
+        statusEl.textContent = 'Please enter an API key.';
+        statusEl.className   = 'ai-status ai-status--error';
+        statusEl.hidden      = false;
+      }
+      keyInput.focus();
+      return;
+    }
+
+    llm.saveConfig(provider, model, key);
+    ui.closeModal('modal-ai-settings');
+    ui.showToast(`AI configured: ${provider} / ${model}`, 'success');
+    showAiPanel(true);
+  });
+}
+
+// ── AI Generation Panel ───────────────────────────────────────
+
+// Tracks state for regeneration
+let _lastGenTopic    = '';
+let _lastGenCategory = '';
+let _lastGenTone     = '';
+let _lastGenContent  = '';
+
+function showAiPanel(configured) {
+  document.getElementById('ai-gen-panel').hidden    = !configured;
+  document.getElementById('ai-setup-prompt').hidden = configured;
+}
+
+function initAiPanel() {
+  // Show correct state on init
+  showAiPanel(llm.isConfigured());
+
+  const topicInput = document.getElementById('ai-topic');
+  const genBtn     = document.getElementById('btn-ai-generate');
+  const textarea   = document.getElementById('post-text');
+
+  // Enable Generate only when topic is non-empty
+  topicInput?.addEventListener('input', () => {
+    if (genBtn) genBtn.disabled = !topicInput.value.trim();
+  });
+
+  // Generate button
+  genBtn?.addEventListener('click', async () => {
+    const topic    = topicInput?.value?.trim();
+    const category = document.getElementById('ai-category')?.value || 'Thought Leadership';
+    const tone     = document.getElementById('ai-tone')?.value    || 'Professional';
+
+    if (!topic) return;
+
+    ui.setLoading(genBtn, true, 'Generating…');
+    try {
+      const content = await llm.generatePost({ topic, category, tone });
+      applyGeneratedContent(content);
+      _lastGenTopic    = topic;
+      _lastGenCategory = category;
+      _lastGenTone     = tone;
+      _lastGenContent  = content;
+      document.getElementById('ai-regen-bar').hidden = false;
+      document.getElementById('ai-regen-feedback').value = '';
+    } catch (err) {
+      ui.showToast(err.message, 'error', 7000);
+    } finally {
+      ui.setLoading(genBtn, false);
+    }
+  });
+
+  // Regenerate button
+  document.getElementById('btn-ai-regen')?.addEventListener('click', async () => {
+    const regenBtn = document.getElementById('btn-ai-regen');
+    const feedback = document.getElementById('ai-regen-feedback')?.value?.trim() || '';
+
+    ui.setLoading(regenBtn, true, 'Regenerating…');
+    try {
+      const content = await llm.generatePost({
+        topic:       _lastGenTopic,
+        category:    _lastGenCategory,
+        tone:        _lastGenTone,
+        prevContent: _lastGenContent,
+        feedback,
+      });
+      applyGeneratedContent(content);
+      _lastGenContent = content;
+      document.getElementById('ai-regen-feedback').value = '';
+      ui.showToast('Content regenerated!', 'success', 3000);
+    } catch (err) {
+      ui.showToast(err.message, 'error', 7000);
+    } finally {
+      ui.setLoading(regenBtn, false);
+    }
+  });
+}
+
+function applyGeneratedContent(content) {
+  const textarea = document.getElementById('post-text');
+  if (!textarea) return;
+  textarea.value = content;
+  // Trigger input event so char counter + Post button update
+  textarea.dispatchEvent(new Event('input'));
+  textarea.focus();
+  ui.hidePostResult();
 }
 
 // ── API Explorer ─────────────────────────────────────────────
@@ -246,4 +426,3 @@ function handleLogout() {
     });
   }
 }
-

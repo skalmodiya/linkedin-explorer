@@ -265,6 +265,37 @@ export function showError(message) {
   showScreen('screen-error');
 }
 
+// ── Modal helpers ────────────────────────────────────────────
+
+export function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.hidden = false;
+  // Trap focus on first focusable element
+  requestAnimationFrame(() => {
+    el.querySelector('input, select, button, [tabindex]')?.focus();
+  });
+}
+
+export function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.hidden = true;
+}
+
+// ── Select population ─────────────────────────────────────────
+
+export function populateSelect(selectEl, options, selectedValue) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
+  options.forEach(({ value, label }) => {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if (value === selectedValue) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
 // ── Utilities ────────────────────────────────────────────────
 
 function setTextContent(id, text) {

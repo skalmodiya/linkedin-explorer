@@ -7,7 +7,7 @@
   <meta name="description" content="Explore LinkedIn's free API — login, view your profile, and create posts." />
 
   <!-- Content Security Policy (frame-ancestors only works as HTTP header, not meta) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' https://*.licdn.com https://*.linkedin.com data: blob:; connect-src 'self' https://*.workers.dev; font-src 'self' https://cdn.jsdelivr.net; worker-src 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' https://*.licdn.com https://*.linkedin.com data: blob:; connect-src 'self' https://*.workers.dev http://localhost:6655; font-src 'self' https://cdn.jsdelivr.net; worker-src 'none';" />
 
   <link rel="stylesheet" href="css/style.css" />
 
@@ -127,6 +127,61 @@
 
           <!-- Tab: Compose -->
           <div class="tab-panel active" data-panel="compose" id="panel-compose" role="tabpanel" aria-labelledby="tab-compose">
+
+            <!-- AI Generation Panel (shown when LLM configured) -->
+            <div class="ai-gen-panel" id="ai-gen-panel" hidden>
+              <div class="ai-gen-header">
+                <span class="ai-gen-title">
+                  <i class="ph ph-sparkle"></i> Generate with AI
+                </span>
+                <button class="btn btn--ghost btn--xs" id="btn-ai-settings-open" title="AI settings">
+                  <i class="ph ph-gear"></i> Settings
+                </button>
+              </div>
+              <div class="ai-gen-body">
+                <div class="ai-gen-row">
+                  <label class="ai-label" for="ai-category">Category</label>
+                  <select class="select-styled" id="ai-category">
+                    <option value="Thought Leadership">Thought Leadership</option>
+                    <option value="Job/Career Update">Job / Career Update</option>
+                    <option value="Industry News">Industry News</option>
+                    <option value="Product/Feature">Product / Feature</option>
+                    <option value="Learning & Tips">Learning &amp; Tips</option>
+                    <option value="Personal Story">Personal Story</option>
+                    <option value="Engagement Question">Engagement Question</option>
+                    <option value="Event Announcement">Event Announcement</option>
+                  </select>
+                </div>
+                <div class="ai-gen-row">
+                  <label class="ai-label" for="ai-topic">Topic</label>
+                  <input class="input-styled" id="ai-topic" type="text" placeholder="e.g. The future of AI in the workplace" maxlength="300" />
+                </div>
+                <div class="ai-gen-row">
+                  <label class="ai-label" for="ai-tone">Tone</label>
+                  <select class="select-styled" id="ai-tone">
+                    <option value="Professional">Professional</option>
+                    <option value="Casual">Casual</option>
+                    <option value="Inspirational">Inspirational</option>
+                    <option value="Educational">Educational</option>
+                    <option value="Humorous">Humorous</option>
+                    <option value="Concise">Concise</option>
+                  </select>
+                </div>
+                <div class="ai-gen-actions">
+                  <button class="btn btn--linkedin btn--sm" id="btn-ai-generate" disabled>
+                    <i class="ph ph-lightning"></i> Generate
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Setup prompt (shown when LLM NOT configured) -->
+            <div class="ai-setup-prompt" id="ai-setup-prompt">
+              <i class="ph ph-sparkle"></i>
+              <span>Generate posts with AI —</span>
+              <button class="btn-link" id="btn-ai-setup-link">set up your API key</button>
+            </div>
+
             <div class="composer-card">
               <!-- Header: avatar + name + audience -->
               <div class="composer-header">
@@ -150,6 +205,20 @@
                 aria-label="Post content"
               ></textarea>
 
+              <!-- AI Regeneration bar (shown after first generation) -->
+              <div class="ai-regen-bar" id="ai-regen-bar" hidden>
+                <input
+                  class="ai-regen-input"
+                  id="ai-regen-feedback"
+                  type="text"
+                  placeholder="Tell me what to change… (or leave blank to regenerate)"
+                  maxlength="500"
+                />
+                <button class="btn btn--sm ai-regen-btn" id="btn-ai-regen">
+                  <i class="ph ph-arrow-clockwise"></i> Regenerate
+                </button>
+              </div>
+
               <!-- Emoji row -->
               <div class="composer-emoji-row">
                 <button class="composer-icon-btn" title="Add emoji" aria-label="Add emoji">
@@ -166,7 +235,7 @@
               <!-- Bottom toolbar -->
               <div class="composer-toolbar">
                 <div class="composer-toolbar-left">
-                  <button class="composer-ai-btn" title="Rewrite with AI" aria-label="Rewrite with AI">
+                  <button class="composer-ai-btn" id="btn-ai-toolbar" title="AI Settings" aria-label="Open AI settings">
                     <i class="ph ph-sparkle"></i> Rewrite with AI
                   </button>
                   <button class="composer-icon-btn" title="Add media" aria-label="Add photo or video">
@@ -300,10 +369,62 @@
   <!-- Toast container -->
   <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
-  <!-- Theme toggle (visible on login screen too) -->
   <button class="btn-icon floating-theme" id="btn-theme-login" title="Toggle theme" aria-label="Toggle dark/light theme">
     <i class="ph ph-moon" id="theme-icon-login"></i>
   </button>
+
+  <!-- ═══════════════ AI SETTINGS MODAL ═══════════════ -->
+  <div class="modal-overlay" id="modal-ai-settings" hidden aria-modal="true" role="dialog" aria-labelledby="modal-ai-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-ai-title">
+          <i class="ph ph-sparkle"></i> AI Settings
+        </h2>
+        <button class="btn-icon modal-close" id="btn-modal-close" aria-label="Close">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label class="form-label" for="ai-provider-select">Provider</label>
+          <select class="select-styled" id="ai-provider-select"></select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ai-apikey-input">API Key</label>
+          <div class="input-with-btn">
+            <input
+              class="input-styled"
+              id="ai-apikey-input"
+              type="password"
+              placeholder="Paste your API key here"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="btn btn--ghost btn--sm" id="btn-apikey-toggle" type="button" aria-label="Show/hide API key">
+              <i class="ph ph-eye" id="apikey-eye-icon"></i>
+            </button>
+          </div>
+          <p class="form-hint">Stored locally in your browser only. Never sent to any server.</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="ai-model-select">Model</label>
+          <select class="select-styled" id="ai-model-select"></select>
+        </div>
+
+        <div class="ai-status" id="ai-status" hidden></div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--ghost" id="btn-modal-cancel">Cancel</button>
+        <button class="btn btn--linkedin" id="btn-modal-save">
+          <i class="ph ph-floppy-disk"></i> Save &amp; Use
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Entry point — must be after DOM -->
   <script type="module" src="js/app.js"></script>
