@@ -1,7 +1,9 @@
-// api.js — LinkedIn API calls
+// api.js — LinkedIn API calls routed through Cloudflare Worker proxy
+// The Worker adds CORS headers and forwards to api.linkedin.com server-side.
+import { CONFIG } from '../config.js';
 import { getToken } from './auth.js';
 
-const API_BASE = 'https://api.linkedin.com/v2';
+const PROXY_BASE = CONFIG.WORKER_URL + '/api';
 
 // ── Custom error types ────────────────────────────────────
 
@@ -21,7 +23,8 @@ async function apiFetch(url, options = {}) {
   const response = await fetch(url, {
     ...options,
     headers: {
-      Authorization:              `Bearer ${token}`,
+      Authorization:               `Bearer ${token}`,
+      'Content-Type':              'application/json',
       'X-Restli-Protocol-Version': '2.0.0',
       ...(options.headers || {}),
     },
@@ -36,10 +39,8 @@ async function apiFetch(url, options = {}) {
     let msg = `HTTP ${response.status}`;
     try {
       const body = await response.json();
-      msg = body.message || body.error_description || body.serviceErrorCode
-           ? `${body.message || body.error_description} (code ${body.serviceErrorCode || response.status})`
-           : msg;
-    } catch (_) { /* ignore JSON parse error */ }
+      msg = body.message || body.error_description || msg;
+    } catch (_) { /* ignore */ }
     throw new ApiError(response.status, msg);
   }
 
@@ -49,19 +50,18 @@ async function apiFetch(url, options = {}) {
 // ── LinkedIn API endpoints ────────────────────────────────
 
 /**
- * GET /v2/userinfo — OpenID Connect profile
+ * GET /v2/userinfo (via Worker proxy)
  * Returns: { sub, name, given_name, family_name, picture, email, email_verified, locale }
  */
 export async function getUserInfo() {
-  const res = await apiFetch(`${API_BASE}/userinfo`);
+  const res = await apiFetch(`${PROXY_BASE}/userinfo`);
   return res.json();
 }
 
 /**
- * POST /v2/ugcPosts — Create a text post
- * @param {string} text  — Post body (max 3000 chars)
- * @param {string} authorSub — LinkedIn member sub (from userinfo.sub)
- * Returns: { postUrn } — The URN of the created post
+ * POST /v2/ugcPosts (via Worker proxy)
+ * @param {string} text       — Post body (max 3000 chars)
+ * @param {string} authorSub  — LinkedIn member sub from userinfo
  */
 export async function createTextPost(text, authorSub) {
   const body = {
@@ -69,7 +69,7 @@ export async function createTextPost(text, authorSub) {
     lifecycleState: 'PUBLISHED',
     specificContent: {
       'com.linkedin.ugc.ShareContent': {
-        shareCommentary: { text: text.trim() },
+        shareCommentary:    { text: text.trim() },
         shareMediaCategory: 'NONE',
       },
     },
@@ -78,20 +78,17 @@ export async function createTextPost(text, authorSub) {
     },
   };
 
-  const res = await apiFetch(`${API_BASE}/ugcPosts`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+  const res = await apiFetch(`${PROXY_BASE}/ugcPosts`, {
+    method: 'POST',
+    body:   JSON.stringify(body),
   });
 
-  // LinkedIn returns 201 with X-RestLi-Id header containing the post URN
   const postUrn = res.headers.get('X-RestLi-Id') || res.headers.get('x-restli-id') || '';
   return { postUrn };
 }
 
 /**
- * Derive a shareable LinkedIn URL from a ugcPost URN.
- * e.g. "urn:li:ugcPost:1234567890" → "https://www.linkedin.com/feed/update/urn:li:ugcPost:1234567890/"
+ * Build a shareable LinkedIn post URL from a ugcPost URN.
  */
 export function getPostUrl(postUrn) {
   if (!postUrn) return 'https://www.linkedin.com/feed/';
