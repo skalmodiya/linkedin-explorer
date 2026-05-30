@@ -1,9 +1,11 @@
 // app.js — Main entry point, event wiring, screen routing
 import { CONFIG } from '../config.js';
-import * as auth from './auth.js';
-import * as api  from './api.js';
-import * as ui   from './ui.js';
-import * as llm  from './llm.js';
+import * as auth   from './auth.js';
+import * as api    from './api.js';
+import * as ui     from './ui.js';
+import * as llm    from './llm.js';
+import * as db     from './db.js';
+import { initDrafts, clearActiveDraft } from './drafts.js';
 
 // Expose auth helpers for ui.js (avoids circular imports)
 window.__liAuth = { getExpiryDate: auth.getExpiryDate };
@@ -138,6 +140,13 @@ async function loadProfile() {
     // Wire up API explorer
     initApiExplorer();
 
+    // Wire up post history tab
+    initPostHistory();
+
+    // Wire up AI history + templates modals
+    initAiHistoryModal();
+    initTemplatesModal();
+
     // Wire up logout buttons
     ['btn-logout', 'btn-revoke'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', handleLogout);
@@ -182,21 +191,62 @@ function initComposer(authorSub) {
       const { postUrn } = await api.createTextPost(text, authorSub);
       ui.showPostResult(postUrn);
       ui.showToast('Post published successfully!', 'success');
+
+      // Save to post history
+      db.savePostHistory({
+        postUrn,
+        content:  text,
+        topic:    _lastGenTopic,
+        category: _lastGenCategory,
+        tone:     _lastGenTone,
+      });
+
       if (textarea) textarea.value = '';
       document.getElementById('char-count').textContent = '0';
       document.getElementById('char-counter')?.classList.remove('warn', 'danger');
       postBtn.disabled = true;
-      // Hide regen bar after successful post
       document.getElementById('ai-regen-bar').hidden = true;
+      clearActiveDraft();
+
+      // Refresh history tab
+      initPostHistory();
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
       postBtn.dataset.loading = 'false';
       postBtn.textContent = 'Post';
-      // Re-enable only if textarea has content
       postBtn.disabled = !(textarea?.value?.trim());
     }
   });
+
+  // Drafts integration
+  const getComposerState = () => ({
+    content:  textarea?.value || '',
+    topic:    document.getElementById('ai-topic')?.value    || '',
+    category: document.getElementById('ai-category')?.value || '',
+    tone:     document.getElementById('ai-tone')?.value     || '',
+  });
+
+  const setComposerState = ({ content, topic, category, tone }) => {
+    if (textarea) {
+      textarea.value = content;
+      textarea.dispatchEvent(new Event('input'));
+      textarea.focus();
+    }
+    const topicEl    = document.getElementById('ai-topic');
+    const categoryEl = document.getElementById('ai-category');
+    const toneEl     = document.getElementById('ai-tone');
+    if (topicEl    && topic)    topicEl.value    = topic;
+    if (categoryEl && category) categoryEl.value = category;
+    if (toneEl     && tone)     toneEl.value     = tone;
+    // Enable generate button if topic is set
+    const genBtn = document.getElementById('btn-ai-generate');
+    if (genBtn) genBtn.disabled = !topicEl?.value?.trim();
+    ui.hidePostResult();
+    document.getElementById('ai-regen-bar').hidden = true;
+  };
+
+  initDrafts(getComposerState, setComposerState);
 
   // Wire AI settings modal + generation panel
   initAiSettings();
@@ -333,6 +383,10 @@ function initAiPanel() {
       _lastGenContent  = content;
       document.getElementById('ai-regen-bar').hidden = false;
       document.getElementById('ai-regen-feedback').value = '';
+
+      // Save to AI history
+      const { provider, model } = llm.getConfig();
+      db.saveAiHistory({ topic, category, tone, provider, model, feedback: '', content });
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
@@ -358,6 +412,10 @@ function initAiPanel() {
       _lastGenContent = content;
       document.getElementById('ai-regen-feedback').value = '';
       ui.showToast('Content regenerated!', 'success', 3000);
+
+      // Save regeneration to AI history
+      const { provider, model } = llm.getConfig();
+      db.saveAiHistory({ topic: _lastGenTopic, category: _lastGenCategory, tone: _lastGenTone, provider, model, feedback, content });
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
@@ -374,6 +432,183 @@ function applyGeneratedContent(content) {
   textarea.dispatchEvent(new Event('input'));
   textarea.focus();
   ui.hidePostResult();
+}
+
+// ── Post History Tab ──────────────────────────────────────────
+
+async function initPostHistory() {
+  const container = document.getElementById('post-history-list');
+  if (!container) return;
+
+  const posts = await db.getPostHistory();
+
+  if (!posts.length) {
+    container.innerHTML = `<p class="history-empty">No posts yet. Published posts will appear here.</p>`;
+    return;
+  }
+
+  container.innerHTML = posts.map(p => {
+    const preview = (p.content || '').slice(0, 160) + ((p.content || '').length > 160 ? '…' : '');
+    const date    = p.posted_at ? new Date(p.posted_at + 'Z').toLocaleString() : '—';
+    const viewUrl = p.post_urn ? `https://www.linkedin.com/feed/update/${p.post_urn}/` : null;
+    return `
+      <div class="post-history-card">
+        <p class="post-history-preview">${escHtml(preview)}</p>
+        <div class="post-history-meta">
+          <span class="post-history-date">${date}</span>
+          ${p.category ? `<span class="post-history-badge">${escHtml(p.category)}</span>` : ''}
+        </div>
+        ${viewUrl ? `<a class="btn btn--ghost btn--xs post-history-link" href="${viewUrl}" target="_blank" rel="noopener">
+          <i class="ph ph-arrow-square-out"></i> View on LinkedIn
+        </a>` : ''}
+      </div>`;
+  }).join('');
+}
+
+// ── AI History Modal ──────────────────────────────────────────
+
+async function initAiHistoryModal() {
+  document.getElementById('btn-ai-history-open')?.addEventListener('click', async () => {
+    const container = document.getElementById('ai-history-list');
+    if (container) {
+      const items = await db.getAiHistory();
+      if (!items.length) {
+        container.innerHTML = `<p class="history-empty">No generations yet.</p>`;
+      } else {
+        container.innerHTML = items.map(h => {
+          const preview = (h.content || '').slice(0, 120) + '…';
+          const date    = h.created_at ? new Date(h.created_at + 'Z').toLocaleString() : '—';
+          return `
+            <div class="history-item">
+              <div class="history-item-meta">
+                <span class="history-topic">${escHtml(h.topic || '—')}</span>
+                <span class="history-badges">
+                  ${h.tone     ? `<span class="tag">${escHtml(h.tone)}</span>`     : ''}
+                  ${h.provider ? `<span class="tag tag--provider">${escHtml(h.provider)}</span>` : ''}
+                </span>
+                <span class="history-date">${date}</span>
+              </div>
+              <p class="history-preview">${escHtml(preview)}</p>
+              <button class="btn btn--ghost btn--xs history-load-btn" data-content="${escAttr(h.content)}">
+                <i class="ph ph-pencil-simple"></i> Load into composer
+              </button>
+            </div>`;
+        }).join('');
+
+        container.querySelectorAll('.history-load-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            applyGeneratedContent(btn.dataset.content);
+            ui.closeModal('modal-ai-history');
+          });
+        });
+      }
+    }
+    ui.openModal('modal-ai-history');
+  });
+
+  ['btn-ai-history-close', 'btn-ai-history-cancel'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => ui.closeModal('modal-ai-history'));
+  });
+  document.getElementById('modal-ai-history')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modal-ai-history') ui.closeModal('modal-ai-history');
+  });
+}
+
+// ── Templates Modal ───────────────────────────────────────────
+
+async function initTemplatesModal() {
+  document.getElementById('btn-templates-open')?.addEventListener('click', async () => {
+    await renderTemplatesList();
+    ui.openModal('modal-templates');
+  });
+
+  ['btn-templates-close', 'btn-templates-cancel'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => ui.closeModal('modal-templates'));
+  });
+  document.getElementById('modal-templates')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modal-templates') ui.closeModal('modal-templates');
+  });
+
+  // Save current AI params as template
+  document.getElementById('btn-save-template')?.addEventListener('click', async () => {
+    const topic    = document.getElementById('ai-topic')?.value?.trim()    || '';
+    const category = document.getElementById('ai-category')?.value         || '';
+    const tone     = document.getElementById('ai-tone')?.value             || '';
+    const name     = prompt('Template name:', topic || 'My template');
+    if (!name) return;
+    await db.saveTemplate({ name, topic, category, tone });
+    await renderTemplatesList();
+    ui.openModal('modal-templates');
+    ui.showToast('Template saved!', 'success', 2500);
+  });
+}
+
+async function renderTemplatesList() {
+  const container = document.getElementById('templates-list');
+  if (!container) return;
+
+  const templates = await db.getTemplates();
+  if (!templates.length) {
+    container.innerHTML = `<p class="history-empty">No templates yet. Fill in the AI panel and click "Save template".</p>`;
+    return;
+  }
+
+  container.innerHTML = templates.map(t => `
+    <div class="history-item">
+      <div class="history-item-meta">
+        <span class="history-topic">${escHtml(t.name)}</span>
+        <span class="history-badges">
+          ${t.category ? `<span class="tag">${escHtml(t.category)}</span>` : ''}
+          ${t.tone     ? `<span class="tag">${escHtml(t.tone)}</span>`     : ''}
+        </span>
+      </div>
+      ${t.topic ? `<p class="history-preview">${escHtml(t.topic)}</p>` : ''}
+      <div class="history-item-actions">
+        <button class="btn btn--ghost btn--xs tpl-load-btn" data-topic="${escAttr(t.topic||'')}" data-category="${escAttr(t.category||'')}" data-tone="${escAttr(t.tone||'')}">
+          <i class="ph ph-download-simple"></i> Load
+        </button>
+        <button class="btn btn--ghost btn--xs tpl-delete-btn" data-id="${t.id}">
+          <i class="ph ph-trash"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.tpl-load-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const topicEl    = document.getElementById('ai-topic');
+      const categoryEl = document.getElementById('ai-category');
+      const toneEl     = document.getElementById('ai-tone');
+      if (topicEl)    topicEl.value    = btn.dataset.topic;
+      if (categoryEl) categoryEl.value = btn.dataset.category;
+      if (toneEl)     toneEl.value     = btn.dataset.tone;
+      const genBtn = document.getElementById('btn-ai-generate');
+      if (genBtn) genBtn.disabled = !topicEl?.value?.trim();
+      ui.closeModal('modal-templates');
+      ui.showToast('Template loaded into AI panel', 'success', 2500);
+    });
+  });
+
+  container.querySelectorAll('.tpl-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await db.deleteTemplate(parseInt(btn.dataset.id, 10));
+      await renderTemplatesList();
+    });
+  });
+}
+
+// ── Shared utils ──────────────────────────────────────────────
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escAttr(str) {
+  return String(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // ── API Explorer ─────────────────────────────────────────────

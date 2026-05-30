@@ -1,0 +1,11 @@
+{
+  "name": "linkedin-explorer-server",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "sql.js": "^1.12.0"
+  }
+}

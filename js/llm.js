@@ -2,31 +2,35 @@
 // API keys stored in localStorage (prefixed li_ai_)
 // All calls go to local proxy at http://localhost:6655/*
 
+// LLM calls go through the local server proxy at /llm/* which forwards to LiteLLM on port 6655.
+// This avoids CORS issues when the app is served from localhost:5173.
+const LLM_PROXY = 'http://localhost:5173/llm';
+
 export const PROVIDERS = {
   anthropic: {
     label:        'Anthropic (Claude)',
-    base:         'http://localhost:6655/anthropic/v1',
+    base:         `${LLM_PROXY}/anthropic/v1`,
     endpoint:     '/messages',
     models:       ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
     defaultModel: 'claude-sonnet-4-6',
   },
   openai: {
     label:        'OpenAI',
-    base:         'http://localhost:6655/openai/v1',
+    base:         `${LLM_PROXY}/openai/v1`,
     endpoint:     '/chat/completions',
     models:       ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
     defaultModel: 'gpt-4o',
   },
   gemini: {
     label:        'Google Gemini',
-    base:         'http://localhost:6655/gemini',
+    base:         `${LLM_PROXY}/gemini`,
     endpoint:     '/v1beta/models/{model}:generateContent',
     models:       ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
     defaultModel: 'gemini-2.0-flash',
   },
   litellm: {
     label:        'LiteLLM',
-    base:         'http://localhost:6655/litellm/v1',
+    base:         `${LLM_PROXY}/litellm/v1`,
     endpoint:     '/chat/completions',
     models:       ['gpt-4o', 'claude-sonnet-4-6', 'gemini-2.0-flash'],
     defaultModel: 'gpt-4o',

@@ -282,6 +282,18 @@ export function closeModal(id) {
   if (el) el.hidden = true;
 }
 
+// ── Drawer helpers ────────────────────────────────────────────
+
+export function openDrawer(id) {
+  const el = document.getElementById(id);
+  if (el) el.hidden = false;
+}
+
+export function closeDrawer(id) {
+  const el = document.getElementById(id);
+  if (el) el.hidden = true;
+}
+
 // ── Select population ─────────────────────────────────────────
 
 export function populateSelect(selectEl, options, selectedValue) {

@@ -7,7 +7,7 @@
   <meta name="description" content="Explore LinkedIn's free API — login, view your profile, and create posts." />
 
   <!-- Content Security Policy (frame-ancestors only works as HTTP header, not meta) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' https://*.licdn.com https://*.linkedin.com data: blob:; connect-src 'self' https://*.workers.dev http://localhost:6655; font-src 'self' https://cdn.jsdelivr.net; worker-src 'none';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' https://*.licdn.com https://*.linkedin.com data: blob:; connect-src 'self' https://*.workers.dev http://localhost:5173; font-src 'self' https://cdn.jsdelivr.net; worker-src 'none';" />
 
   <link rel="stylesheet" href="css/style.css" />
 
@@ -123,6 +123,9 @@
             <button class="tab" role="tab" aria-selected="false" data-tab="token-info" id="tab-token">
               <i class="ph ph-key"></i> Token Info
             </button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="post-history" id="tab-history">
+              <i class="ph ph-clock-clockwise"></i> History
+            </button>
           </div>
 
           <!-- Tab: Compose -->
@@ -170,6 +173,15 @@
                 <div class="ai-gen-actions">
                   <button class="btn btn--linkedin btn--sm" id="btn-ai-generate" disabled>
                     <i class="ph ph-lightning"></i> Generate
+                  </button>
+                  <button class="btn btn--ghost btn--xs" id="btn-ai-history-open" title="View generation history">
+                    <i class="ph ph-clock-clockwise"></i> History
+                  </button>
+                  <button class="btn btn--ghost btn--xs" id="btn-templates-open" title="Saved prompt templates">
+                    <i class="ph ph-bookmark"></i> Templates
+                  </button>
+                  <button class="btn btn--ghost btn--xs" id="btn-save-template" title="Save current inputs as template">
+                    <i class="ph ph-floppy-disk"></i> Save template
                   </button>
                 </div>
               </div>
@@ -237,6 +249,9 @@
                 <div class="composer-toolbar-left">
                   <button class="composer-ai-btn" id="btn-ai-toolbar" title="AI Settings" aria-label="Open AI settings">
                     <i class="ph ph-sparkle"></i> Rewrite with AI
+                  </button>
+                  <button class="composer-icon-btn" id="btn-open-drafts" title="Drafts" aria-label="Open drafts">
+                    <i class="ph ph-file-text"></i>
                   </button>
                   <button class="composer-icon-btn" title="Add media" aria-label="Add photo or video">
                     <i class="ph ph-image"></i>
@@ -343,6 +358,19 @@
             </div>
           </div>
 
+          <!-- Tab: Post History -->
+          <div class="tab-panel" data-panel="post-history" id="panel-post-history" role="tabpanel" aria-labelledby="tab-history">
+            <div class="post-history-panel">
+              <h3 class="panel-section-title">
+                <i class="ph ph-clock-clockwise"></i> Published Posts
+              </h3>
+              <p class="panel-section-note">Posts you've published from this app. Stored locally.</p>
+              <div id="post-history-list">
+                <p class="history-empty">No posts yet.</p>
+              </div>
+            </div>
+          </div>
+
         </div><!-- /main-content -->
       </div><!-- /dashboard-grid -->
     </section>
@@ -422,6 +450,64 @@
         <button class="btn btn--linkedin" id="btn-modal-save">
           <i class="ph ph-floppy-disk"></i> Save &amp; Use
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ DRAFTS DRAWER ═══════════════ -->
+  <div class="drawer-overlay" id="drawer-overlay" hidden aria-modal="true" role="dialog" aria-label="Drafts">
+    <div class="drawer" id="drawer-drafts">
+      <div class="drawer-header">
+        <h2 class="drawer-title"><i class="ph ph-file-text"></i> Drafts</h2>
+        <button class="btn-icon" id="btn-drafts-close" aria-label="Close drafts">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="drawer-actions">
+        <button class="btn btn--ghost btn--sm" id="btn-save-draft">
+          <i class="ph ph-plus"></i> Save current as draft
+        </button>
+      </div>
+      <div id="drafts-list" class="drafts-list"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ AI HISTORY MODAL ═══════════════ -->
+  <div class="modal-overlay" id="modal-ai-history" hidden aria-modal="true" role="dialog" aria-labelledby="modal-ai-history-title">
+    <div class="modal-dialog modal-dialog--wide">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-ai-history-title">
+          <i class="ph ph-clock-clockwise"></i> AI Generation History
+        </h2>
+        <button class="btn-icon modal-close" id="btn-ai-history-close" aria-label="Close">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="ai-history-list" class="history-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--ghost" id="btn-ai-history-cancel">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TEMPLATES MODAL ═══════════════ -->
+  <div class="modal-overlay" id="modal-templates" hidden aria-modal="true" role="dialog" aria-labelledby="modal-templates-title">
+    <div class="modal-dialog modal-dialog--wide">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-templates-title">
+          <i class="ph ph-bookmark"></i> Saved Templates
+        </h2>
+        <button class="btn-icon modal-close" id="btn-templates-close" aria-label="Close">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="templates-list" class="history-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--ghost" id="btn-templates-cancel">Close</button>
       </div>
     </div>
   </div>
