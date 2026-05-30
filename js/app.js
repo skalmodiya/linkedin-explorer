@@ -6,6 +6,7 @@ import * as ui     from './ui.js';
 import * as llm    from './llm.js';
 import * as db     from './db.js';
 import { initDrafts, clearActiveDraft } from './drafts.js';
+import { initEmojiPicker, initTagPeople, initMoreOptions, initCarousel, initSchedulePost } from './composer-extras.js';
 
 // Expose auth helpers for ui.js (avoids circular imports)
 window.__liAuth = { getExpiryDate: auth.getExpiryDate };
@@ -170,17 +171,81 @@ async function loadProfile() {
   }
 }
 
+// ── Plain-text extractor for contenteditable ────────────────
+// Walks the DOM tree and converts HTML structure to plain text:
+// <br> → newline, block-level elements get a leading newline, text nodes pass through.
+
+function getPlainText(el) {
+  const BLOCK_TAGS = new Set(['P','DIV','H1','H2','H3','H4','H5','H6','LI','BLOCKQUOTE','PRE','TR']);
+  let result = '';
+  let lastWasBlock = false;
+
+  function walk(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent;
+      lastWasBlock = false;
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tag = node.tagName.toUpperCase();
+
+    if (tag === 'BR') {
+      result += '\n';
+      lastWasBlock = true;
+      return;
+    }
+
+    const isBlock = BLOCK_TAGS.has(tag);
+    if (isBlock && result.length > 0 && !lastWasBlock) {
+      result += '\n';
+    }
+
+    for (const child of node.childNodes) {
+      walk(child);
+    }
+
+    if (isBlock && !lastWasBlock) {
+      result += '\n';
+      lastWasBlock = true;
+    }
+  }
+
+  walk(el);
+  // Trim trailing newline added by the outermost block
+  return result.replace(/\n+$/, '');
+}
+
+// ── Selection save/restore (for link popover) ────────────────
+
+let _savedRange = null;
+
+function saveSelectionRange() {
+  const sel = window.getSelection();
+  _savedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
+}
+
+function restoreSelectionRange() {
+  if (!_savedRange) return;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(_savedRange);
+}
+
 // ── Composer ────────────────────────────────────────────────
 
 function initComposer(authorSub) {
-  ui.initCharCounter('post-text', 'char-count');
+  const editor  = document.getElementById('post-text');
+  const postBtn = document.getElementById('btn-post');
+
+  // Char counter: contenteditable fires 'input' events just like textarea
+  // ui.initCharCounter expects an element with .value; we swap in a custom approach
+  initEditorCharCounter(editor);
+
   ui.hidePostResult();
 
-  const postBtn  = document.getElementById('btn-post');
-  const textarea = document.getElementById('post-text');
-
   postBtn?.addEventListener('click', async () => {
-    const text = textarea?.value?.trim();
+    const text = getPlainText(editor).trim();
     if (!text) return;
 
     postBtn.disabled = true;
@@ -188,7 +253,10 @@ function initComposer(authorSub) {
     postBtn.textContent = 'Posting…';
 
     try {
-      const { postUrn } = await api.createTextPost(text, authorSub);
+      let postUrn;
+      const result = await api.createTextPost(text, authorSub);
+      postUrn = result.postUrn;
+
       ui.showPostResult(postUrn);
       ui.showToast('Post published successfully!', 'success');
 
@@ -201,8 +269,9 @@ function initComposer(authorSub) {
         tone:     _lastGenTone,
       });
 
-      if (textarea) textarea.value = '';
-      document.getElementById('char-count').textContent = '0';
+      // Clear editor
+      editor.innerHTML = '';
+      editor.dispatchEvent(new Event('input'));
       document.getElementById('char-counter')?.classList.remove('warn', 'danger');
       postBtn.disabled = true;
       document.getElementById('ai-regen-bar').hidden = true;
@@ -215,23 +284,23 @@ function initComposer(authorSub) {
     } finally {
       postBtn.dataset.loading = 'false';
       postBtn.textContent = 'Post';
-      postBtn.disabled = !(textarea?.value?.trim());
+      postBtn.disabled = !getPlainText(editor).trim();
     }
   });
 
   // Drafts integration
   const getComposerState = () => ({
-    content:  textarea?.value || '',
+    content:  getPlainText(editor),
     topic:    document.getElementById('ai-topic')?.value    || '',
     category: document.getElementById('ai-category')?.value || '',
     tone:     document.getElementById('ai-tone')?.value     || '',
   });
 
   const setComposerState = ({ content, topic, category, tone }) => {
-    if (textarea) {
-      textarea.value = content;
-      textarea.dispatchEvent(new Event('input'));
-      textarea.focus();
+    if (editor) {
+      editor.innerHTML = escHtml(content).replace(/\n/g, '<br>');
+      editor.dispatchEvent(new Event('input'));
+      editor.focus();
     }
     const topicEl    = document.getElementById('ai-topic');
     const categoryEl = document.getElementById('ai-category');
@@ -239,7 +308,6 @@ function initComposer(authorSub) {
     if (topicEl    && topic)    topicEl.value    = topic;
     if (categoryEl && category) categoryEl.value = category;
     if (toneEl     && tone)     toneEl.value     = tone;
-    // Enable generate button if topic is set
     const genBtn = document.getElementById('btn-ai-generate');
     if (genBtn) genBtn.disabled = !topicEl?.value?.trim();
     ui.hidePostResult();
@@ -247,10 +315,146 @@ function initComposer(authorSub) {
   };
 
   initDrafts(getComposerState, setComposerState);
+  initFormattingToolbar(editor);
+
+  // Composer extras
+  const getEditor = () => document.getElementById('post-text');
+  initEmojiPicker(getEditor);
+  initTagPeople(getEditor);
+  initMoreOptions(getEditor);
+  initCarousel();
+  initSchedulePost();
 
   // Wire AI settings modal + generation panel
   initAiSettings();
   initAiPanel();
+}
+
+// ── Editor char counter ───────────────────────────────────────
+// Replaces ui.initCharCounter (which was written for <textarea>)
+
+function initEditorCharCounter(editor) {
+  if (!editor) return;
+  const MAX = 3000;
+
+  function update() {
+    const len    = getPlainText(editor).length;
+    const count  = document.getElementById('char-count');
+    const counter = document.getElementById('char-counter');
+    const postBtn = document.getElementById('btn-post');
+
+    if (count)  count.textContent = len;
+    if (counter) {
+      counter.classList.toggle('warn',   len > 2700 && len <= MAX);
+      counter.classList.toggle('danger', len > MAX);
+    }
+    if (postBtn) postBtn.disabled = len === 0 || len > MAX;
+  }
+
+  editor.addEventListener('input', update);
+  update();
+}
+
+// ── Formatting toolbar ────────────────────────────────────────
+
+function initFormattingToolbar(editor) {
+  const toolbar    = document.getElementById('composer-format-toolbar');
+  const linkPopover = document.getElementById('link-popover');
+  if (!toolbar) return;
+
+  toolbar.addEventListener('mousedown', (e) => {
+    // Prevent toolbar clicks from blurring the editor
+    e.preventDefault();
+  });
+
+  toolbar.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.dataset.cmd;
+      editor.focus();
+
+      if (cmd === 'heading') {
+        // Toggle between h3 and normal paragraph
+        const current = document.queryCommandValue('formatBlock');
+        document.execCommand('formatBlock', false, current === 'h3' ? 'p' : 'h3');
+      } else if (cmd === 'link') {
+        saveSelectionRange();
+        showLinkPopover(editor);
+        return;
+      } else {
+        document.execCommand(cmd, false, null);
+      }
+
+      editor.dispatchEvent(new Event('input'));
+      updateToolbarState();
+    });
+  });
+
+  // Update active states when selection changes
+  document.addEventListener('selectionchange', updateToolbarState);
+
+  function updateToolbarState() {
+    toolbar.querySelectorAll('.fmt-btn').forEach(btn => {
+      const cmd = btn.dataset.cmd;
+      if (cmd === 'heading') {
+        btn.classList.toggle('active', document.queryCommandValue('formatBlock') === 'h3');
+      } else if (cmd === 'link') {
+        // no active state for link
+      } else {
+        try {
+          btn.classList.toggle('active', document.queryCommandState(cmd));
+        } catch (_) { /* some commands throw when no selection */ }
+      }
+    });
+  }
+
+  // ── Link popover ──────────────────────────────────────────
+
+  function showLinkPopover(editor) {
+    if (!linkPopover) return;
+    const input     = document.getElementById('link-popover-url');
+    const insertBtn = document.getElementById('btn-link-insert');
+    const cancelBtn = document.getElementById('btn-link-cancel');
+
+    if (input) input.value = '';
+    linkPopover.hidden = false;
+    input?.focus();
+
+    function doInsert() {
+      const url = input?.value?.trim();
+      if (url) {
+        restoreSelectionRange();
+        editor.focus();
+        document.execCommand('createLink', false, url);
+        // Make link open in new tab: find the newly created <a>
+        editor.querySelectorAll('a').forEach(a => {
+          if (!a.target) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+        });
+        editor.dispatchEvent(new Event('input'));
+      }
+      linkPopover.hidden = true;
+      cleanup();
+    }
+
+    function doCancel() {
+      linkPopover.hidden = true;
+      cleanup();
+    }
+
+    function onKeydown(e) {
+      if (e.key === 'Enter') { e.preventDefault(); doInsert(); }
+      if (e.key === 'Escape') doCancel();
+    }
+
+    function cleanup() {
+      insertBtn?.removeEventListener('click', doInsert);
+      cancelBtn?.removeEventListener('click', doCancel);
+      input?.removeEventListener('keydown', onKeydown);
+    }
+
+    insertBtn?.addEventListener('click', doInsert);
+    cancelBtn?.addEventListener('click', doCancel);
+    input?.addEventListener('keydown', onKeydown);
+  }
 }
 
 // ── AI Settings Modal ────────────────────────────────────────
@@ -262,43 +466,94 @@ function initAiSettings() {
   const keyInput       = document.getElementById('ai-apikey-input');
   const eyeIcon        = document.getElementById('apikey-eye-icon');
   const statusEl       = document.getElementById('ai-status');
+  const modelLoading   = document.getElementById('model-loading');
+  const modelHint      = document.getElementById('model-hint');
+  const providerHint   = document.getElementById('provider-hint');
 
-  // Populate provider dropdown
+  // Populate provider dropdown (always all options, but starts disabled)
   ui.populateSelect(
     providerSelect,
     llm.getProviderList().map(p => ({ value: p.id, label: p.label })),
     llm.getConfig().provider
   );
 
-  function syncModelDropdown(provider) {
-    const models = llm.getModelsForProvider(provider);
-    const { model } = llm.getConfig();
+  function setStatus(msg, isError = false) {
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    statusEl.className   = `ai-status ai-status--${isError ? 'error' : 'info'}`;
+    statusEl.hidden      = !msg;
+  }
+
+  async function loadModels(provider, apiKey) {
+    modelSelect.disabled = true;
+    modelSelect.innerHTML = '<option>Loading…</option>';
+    if (modelLoading) modelLoading.hidden = false;
+    if (modelHint)    modelHint.hidden    = true;
+    setStatus('');
+
+    const models = await llm.fetchLiveModels(provider, apiKey);
+
+    if (modelLoading) modelLoading.hidden = true;
+    if (modelHint)    modelHint.hidden    = false;
+
+    const savedModel = llm.getConfig().provider === provider ? llm.getConfig().model : '';
     ui.populateSelect(
       modelSelect,
       models.map(m => ({ value: m, label: m })),
-      model
+      savedModel || models[0] || ''
     );
+    modelSelect.disabled = models.length === 0;
+    if (models.length === 0) {
+      setStatus('Could not load models — check your API key.', true);
+    }
   }
 
   function prefillForProvider(provider) {
-    syncModelDropdown(provider);
     keyInput.value = llm.getKeyForProvider(provider);
-    if (statusEl) statusEl.hidden = true;
+    const key = keyInput.value.trim();
+    if (key) {
+      loadModels(provider, key);
+    } else {
+      modelSelect.disabled = true;
+      modelSelect.innerHTML = '<option value="">— choose a provider first —</option>';
+    }
+    setStatus('');
   }
 
+  // When key input changes: unlock provider if key is non-empty
+  keyInput?.addEventListener('input', () => {
+    const hasKey = keyInput.value.trim().length > 0;
+    providerSelect.disabled = !hasKey;
+    if (providerHint) providerHint.hidden = hasKey;
+    if (hasKey) {
+      loadModels(providerSelect.value, keyInput.value.trim());
+    } else {
+      modelSelect.disabled = true;
+      modelSelect.innerHTML = '<option value="">— enter API key first —</option>';
+    }
+    setStatus('');
+  });
+
   // Open modal from toolbar AI button
-  ['btn-ai-toolbar', 'btn-ai-settings-open', 'btn-ai-setup-link'].forEach(id => {
+  ['btn-ai-settings-open', 'btn-ai-setup-link'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', () => {
       const { provider } = llm.getConfig();
-      prefillForProvider(provider);
       providerSelect.value = provider;
+      prefillForProvider(provider);
+      // If key already set, provider is unlocked immediately
+      const hasKey = keyInput.value.trim().length > 0;
+      providerSelect.disabled = !hasKey;
+      if (providerHint) providerHint.hidden = hasKey;
       ui.openModal('modal-ai-settings');
     });
   });
 
-  // Provider change → refresh model list + prefill key
+  // Provider change → reload models
   providerSelect?.addEventListener('change', () => {
-    prefillForProvider(providerSelect.value);
+    const key = keyInput.value.trim();
+    if (key) {
+      loadModels(providerSelect.value, key);
+    }
   });
 
   // Show/hide API key
@@ -323,12 +578,12 @@ function initAiSettings() {
     const key      = keyInput.value.trim();
 
     if (!key) {
-      if (statusEl) {
-        statusEl.textContent = 'Please enter an API key.';
-        statusEl.className   = 'ai-status ai-status--error';
-        statusEl.hidden      = false;
-      }
+      setStatus('Please enter an API key.', true);
       keyInput.focus();
+      return;
+    }
+    if (!model) {
+      setStatus('Please select a model.', true);
       return;
     }
 
@@ -336,6 +591,178 @@ function initAiSettings() {
     ui.closeModal('modal-ai-settings');
     ui.showToast(`AI configured: ${provider} / ${model}`, 'success');
     showAiPanel(true);
+  });
+}
+
+function updateAiProviderBadge() {
+  const { provider, model } = llm.getConfig();
+  const configEl    = document.getElementById('ai-active-config');
+  const providerEl  = document.getElementById('ai-config-provider');
+  const modelEl     = document.getElementById('ai-config-model');
+  if (!configEl) return;
+  const configured = !!(provider && model && llm.isConfigured());
+  configEl.hidden = !configured;
+  if (configured) {
+    const label = llm.getProviderList().find(p => p.id === provider)?.label || provider;
+    if (providerEl) providerEl.textContent = label;
+    if (modelEl)    modelEl.textContent    = model;
+  }
+}
+
+// ── Topic suggestions popup ───────────────────────────────────
+
+function initTopicSuggestions() {
+  const popup      = document.getElementById('topic-suggestions-popup');
+  const suggestBtn = document.getElementById('btn-suggest-topics');
+  const closeBtn   = document.getElementById('btn-suggestions-close');
+  const refreshBtn = document.getElementById('btn-suggestions-refresh');
+  const seedGo     = document.getElementById('btn-seed-suggest');
+  const seedInput  = document.getElementById('topic-seed-input');
+  const list       = document.getElementById('topic-suggestions-list');
+  const hint       = document.getElementById('topic-suggestions-hint');
+  const topicInput = document.getElementById('ai-topic');
+  const genBtn     = document.getElementById('btn-ai-generate');
+  if (!popup || !suggestBtn) return;
+
+  // ── Drag to move ──────────────────────────────────────────
+  const header = popup.querySelector('.topic-suggestions-header');
+  let dragging = false, dragOffsetX = 0, dragOffsetY = 0;
+
+  header?.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button')) return;
+    dragging = true;
+    const rect = popup.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    header.classList.add('topic-suggestions-header--dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const pw = popup.offsetWidth,  ph = popup.offsetHeight;
+    let left = Math.max(8, Math.min(e.clientX - dragOffsetX, vw - pw - 8));
+    let top  = Math.max(8, Math.min(e.clientY - dragOffsetY, vh - ph - 8));
+    popup.style.left = left + 'px';
+    popup.style.top  = top  + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    header?.classList.remove('topic-suggestions-header--dragging');
+  });
+
+  // ── Helpers ───────────────────────────────────────────────
+  function getSelections() {
+    return {
+      category: document.getElementById('ai-category')?.value || 'Thought Leadership',
+      tone:     document.getElementById('ai-tone')?.value     || 'Professional',
+      freeText: seedInput?.value?.trim() || '',
+    };
+  }
+
+  function positionPopup() {
+    const anchor = suggestBtn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const popupWidth = Math.min(340, vw - 24);
+    let left = anchor.right - popupWidth;
+    if (left < 12) left = 12;
+    popup.style.width = popupWidth + 'px';
+    popup.style.left  = left + 'px';
+    popup.style.top   = (anchor.bottom + 6) + 'px';
+  }
+
+  function openPopup() {
+    popup.hidden = false;
+    positionPopup();
+    fetchSuggestions();
+  }
+
+  function closePopup() {
+    popup.hidden = true;
+  }
+
+  async function fetchSuggestions() {
+    const { category, tone, freeText } = getSelections();
+    list.innerHTML = '';
+    const label = freeText
+      ? `Generating ideas based on your input…`
+      : `Finding ${category} ideas with a ${tone} tone…`;
+    hint.textContent = label;
+    hint.hidden = false;
+    if (refreshBtn) refreshBtn.disabled = true;
+    if (seedGo)     seedGo.disabled     = true;
+
+    if (!llm.isConfigured()) {
+      hint.textContent = 'Set up your AI first (click Settings above).';
+      if (refreshBtn) refreshBtn.disabled = false;
+      if (seedGo)     seedGo.disabled     = false;
+      return;
+    }
+
+    try {
+      const topics = await llm.suggestTopics(category, tone, freeText);
+      hint.hidden = true;
+      list.innerHTML = topics.map(t => `
+        <li class="topic-suggestion-item">
+          <button class="topic-suggestion-btn" type="button">${escHtml(t)}</button>
+        </li>
+      `).join('');
+
+      list.querySelectorAll('.topic-suggestion-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (topicInput) {
+            topicInput.value = btn.textContent;
+            topicInput.dispatchEvent(new Event('input'));
+            topicInput.focus();
+          }
+          if (genBtn) genBtn.disabled = !btn.textContent.trim();
+          closePopup();
+        });
+      });
+    } catch (err) {
+      hint.textContent = `Error: ${err.message}`;
+      hint.hidden = false;
+    } finally {
+      if (refreshBtn) refreshBtn.disabled = false;
+      if (seedGo)     seedGo.disabled     = false;
+    }
+  }
+
+  // ── Event wiring ──────────────────────────────────────────
+  suggestBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!popup.hidden) { closePopup(); return; }
+    openPopup();
+  });
+
+  closeBtn?.addEventListener('click', closePopup);
+  refreshBtn?.addEventListener('click', fetchSuggestions);
+  seedGo?.addEventListener('click', fetchSuggestions);
+
+  // Ctrl+Enter / Enter (without shift) in seed input triggers fetch
+  seedInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      fetchSuggestions();
+    }
+  });
+
+  // Close on outside click (but not the seed input — it's inside the popup)
+  document.addEventListener('click', (e) => {
+    if (!popup.hidden && !popup.contains(e.target) && e.target !== suggestBtn) {
+      closePopup();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !popup.hidden) closePopup();
+  });
+
+  window.addEventListener('resize', () => {
+    if (!popup.hidden) positionPopup();
   });
 }
 
@@ -350,20 +777,23 @@ let _lastGenContent  = '';
 function showAiPanel(configured) {
   document.getElementById('ai-gen-panel').hidden    = !configured;
   document.getElementById('ai-setup-prompt').hidden = configured;
+  updateAiProviderBadge();
 }
 
 function initAiPanel() {
   // Show correct state on init
   showAiPanel(llm.isConfigured());
+  updateAiProviderBadge();
 
   const topicInput = document.getElementById('ai-topic');
   const genBtn     = document.getElementById('btn-ai-generate');
-  const textarea   = document.getElementById('post-text');
 
   // Enable Generate only when topic is non-empty
   topicInput?.addEventListener('input', () => {
     if (genBtn) genBtn.disabled = !topicInput.value.trim();
   });
+
+  initTopicSuggestions();
 
   // Generate button
   genBtn?.addEventListener('click', async () => {
@@ -387,6 +817,7 @@ function initAiPanel() {
       // Save to AI history
       const { provider, model } = llm.getConfig();
       db.saveAiHistory({ topic, category, tone, provider, model, feedback: '', content });
+
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
@@ -425,12 +856,11 @@ function initAiPanel() {
 }
 
 function applyGeneratedContent(content) {
-  const textarea = document.getElementById('post-text');
-  if (!textarea) return;
-  textarea.value = content;
-  // Trigger input event so char counter + Post button update
-  textarea.dispatchEvent(new Event('input'));
-  textarea.focus();
+  const editor = document.getElementById('post-text');
+  if (!editor) return;
+  editor.innerHTML = escHtml(content).replace(/\n/g, '<br>');
+  editor.dispatchEvent(new Event('input'));
+  editor.focus();
   ui.hidePostResult();
 }
 
@@ -624,6 +1054,12 @@ function initApiExplorer() {
 
         if (call === 'userinfo') {
           data = await api.getUserInfo();
+          status = 200;
+        } else if (call === 'oidc-discovery') {
+          data = await api.getOidcDiscovery();
+          status = 200;
+        } else if (call === 'jwks') {
+          data = await api.getJwks();
           status = 200;
         } else {
           data = { error: 'Unknown endpoint' };

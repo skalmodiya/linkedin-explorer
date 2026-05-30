@@ -75,7 +75,95 @@ export function getModelsForProvider(provider) {
   return PROVIDERS[provider]?.models || [];
 }
 
+/**
+ * Fetch available models from the live LLM proxy for a given provider.
+ * Each provider has a different models endpoint path.
+ * Falls back to the static list if the fetch fails.
+ * @param {string} provider
+ * @param {string} apiKey
+ * @returns {Promise<string[]>} — array of model IDs
+ */
+export async function fetchLiveModels(provider, apiKey) {
+  const paths = {
+    anthropic: '/anthropic/v1/models',
+    openai:    '/openai/v1/models',
+    gemini:    '/gemini/v1beta/models',
+    litellm:   '/litellm/v1/models',
+  };
+  const path = paths[provider];
+  if (!path) return getModelsForProvider(provider);
+
+  try {
+    const res = await fetch(`${LLM_PROXY}${path}`, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'x-api-key':     apiKey,
+      },
+    });
+    if (!res.ok) return getModelsForProvider(provider);
+    const data = await res.json();
+
+    // Normalise across providers:
+    // OpenAI / LiteLLM: { data: [{ id }] }
+    // Anthropic:        { data: [{ id }] }
+    // Gemini:           { models: [{ name: "models/gemini-..." }] }
+    let ids = [];
+    if (Array.isArray(data?.data)) {
+      ids = data.data.map(m => m.id).filter(Boolean);
+    } else if (Array.isArray(data?.models)) {
+      ids = data.models.map(m => (m.name || '').replace(/^models\//, '')).filter(Boolean);
+    }
+
+    // Filter to only text/chat-capable models (exclude embeddings, tts, etc.)
+    ids = ids.filter(id => {
+      const lower = id.toLowerCase();
+      return !lower.includes('embed') && !lower.includes('tts') &&
+             !lower.includes('whisper') && !lower.includes('dall-e') &&
+             !lower.includes('babbage') && !lower.includes('davinci') &&
+             !lower.includes('ada') && !lower.includes('curie');
+    });
+
+    return ids.length > 0 ? ids : getModelsForProvider(provider);
+  } catch (_) {
+    return getModelsForProvider(provider);
+  }
+}
+
 // ── Post generation ───────────────────────────────────────────
+
+/**
+ * Suggest 5 LinkedIn post topic ideas.
+ * @param {string} category
+ * @param {string} tone
+ * @param {string} [freeText]  — optional free-text seed from the user
+ */
+export async function suggestTopics(category, tone, freeText = '') {
+  const { provider, model, key } = getConfig();
+  if (!key) throw new Error('No API key configured. Click ✨ to set up AI.');
+
+  const system = `You are a LinkedIn content strategist. Return exactly 5 concise, specific topic ideas as a numbered list (1. ... 2. ... etc.). Each idea should be one sentence, punchy, and immediately usable as a LinkedIn post topic. No preamble, no explanations after the list.`;
+
+  const parts = [`Category: ${category}`, `Tone: ${tone}`];
+  if (freeText.trim()) parts.push(`My idea / context: ${freeText.trim()}`);
+  parts.push('\nSuggest 5 specific LinkedIn post topic ideas. Let the free-text idea (if provided) shape the suggestions — the category and tone are secondary guidance.');
+  const user = parts.join('\n');
+
+  let raw;
+  switch (provider) {
+    case 'anthropic': raw = await callAnthropic(model, key, system, user); break;
+    case 'openai':    raw = await callOpenAI(model, key, system, user);    break;
+    case 'gemini':    raw = await callGemini(model, key, system, user);    break;
+    case 'litellm':   raw = await callLiteLLM(model, key, system, user);   break;
+    default: throw new Error(`Unknown provider: ${provider}`);
+  }
+
+  // Parse numbered list: "1. ...\n2. ..." → array of strings
+  return raw
+    .split('\n')
+    .map(l => l.replace(/^\s*\d+[\.\)]\s*/, '').trim())
+    .filter(l => l.length > 0)
+    .slice(0, 5);
+}
 
 /**
  * Generate a LinkedIn post using the configured LLM.
@@ -215,7 +303,13 @@ async function llmFetch(url, apiKey, body, extraHeaders = {}) {
 
   const data = await res.json();
   if (!res.ok) {
-    const msg = data?.error?.message || data?.message || `HTTP ${res.status}`;
+    // Surface the full error detail from the provider
+    const msg = data?.error?.message
+      || data?.errorMessage
+      || data?.message
+      || data?.error
+      || JSON.stringify(data)
+      || `HTTP ${res.status}`;
     throw new Error(`${PROVIDERS[getConfig().provider]?.label || 'LLM'}: ${msg}`);
   }
   return data;

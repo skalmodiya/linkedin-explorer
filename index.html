@@ -130,69 +130,10 @@
 
           <!-- Tab: Compose -->
           <div class="tab-panel active" data-panel="compose" id="panel-compose" role="tabpanel" aria-labelledby="tab-compose">
+            <div class="compose-layout">
 
-            <!-- AI Generation Panel (shown when LLM configured) -->
-            <div class="ai-gen-panel" id="ai-gen-panel" hidden>
-              <div class="ai-gen-header">
-                <span class="ai-gen-title">
-                  <i class="ph ph-sparkle"></i> Generate with AI
-                </span>
-                <button class="btn btn--ghost btn--xs" id="btn-ai-settings-open" title="AI settings">
-                  <i class="ph ph-gear"></i> Settings
-                </button>
-              </div>
-              <div class="ai-gen-body">
-                <div class="ai-gen-row">
-                  <label class="ai-label" for="ai-category">Category</label>
-                  <select class="select-styled" id="ai-category">
-                    <option value="Thought Leadership">Thought Leadership</option>
-                    <option value="Job/Career Update">Job / Career Update</option>
-                    <option value="Industry News">Industry News</option>
-                    <option value="Product/Feature">Product / Feature</option>
-                    <option value="Learning & Tips">Learning &amp; Tips</option>
-                    <option value="Personal Story">Personal Story</option>
-                    <option value="Engagement Question">Engagement Question</option>
-                    <option value="Event Announcement">Event Announcement</option>
-                  </select>
-                </div>
-                <div class="ai-gen-row">
-                  <label class="ai-label" for="ai-topic">Topic</label>
-                  <input class="input-styled" id="ai-topic" type="text" placeholder="e.g. The future of AI in the workplace" maxlength="300" />
-                </div>
-                <div class="ai-gen-row">
-                  <label class="ai-label" for="ai-tone">Tone</label>
-                  <select class="select-styled" id="ai-tone">
-                    <option value="Professional">Professional</option>
-                    <option value="Casual">Casual</option>
-                    <option value="Inspirational">Inspirational</option>
-                    <option value="Educational">Educational</option>
-                    <option value="Humorous">Humorous</option>
-                    <option value="Concise">Concise</option>
-                  </select>
-                </div>
-                <div class="ai-gen-actions">
-                  <button class="btn btn--linkedin btn--sm" id="btn-ai-generate" disabled>
-                    <i class="ph ph-lightning"></i> Generate
-                  </button>
-                  <button class="btn btn--ghost btn--xs" id="btn-ai-history-open" title="View generation history">
-                    <i class="ph ph-clock-clockwise"></i> History
-                  </button>
-                  <button class="btn btn--ghost btn--xs" id="btn-templates-open" title="Saved prompt templates">
-                    <i class="ph ph-bookmark"></i> Templates
-                  </button>
-                  <button class="btn btn--ghost btn--xs" id="btn-save-template" title="Save current inputs as template">
-                    <i class="ph ph-floppy-disk"></i> Save template
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Setup prompt (shown when LLM NOT configured) -->
-            <div class="ai-setup-prompt" id="ai-setup-prompt">
-              <i class="ph ph-sparkle"></i>
-              <span>Generate posts with AI —</span>
-              <button class="btn-link" id="btn-ai-setup-link">set up your API key</button>
-            </div>
+              <!-- ── Left: Composer ── -->
+              <div class="compose-main">
 
             <div class="composer-card">
               <!-- Header: avatar + name + audience -->
@@ -209,13 +150,34 @@
               </div>
 
               <!-- Text area -->
-              <textarea
+              <div class="composer-format-toolbar" id="composer-format-toolbar">
+                <button class="fmt-btn" data-cmd="bold"                title="Bold (Ctrl+B)"    type="button"><b>B</b></button>
+                <button class="fmt-btn" data-cmd="italic"              title="Italic (Ctrl+I)"  type="button"><i>I</i></button>
+                <button class="fmt-btn" data-cmd="underline"           title="Underline (Ctrl+U)" type="button"><u>U</u></button>
+                <span class="fmt-divider"></span>
+                <button class="fmt-btn" data-cmd="insertUnorderedList" title="Bullet list"      type="button"><i class="ph ph-list-bullets"></i></button>
+                <button class="fmt-btn" data-cmd="heading"             title="Heading"          type="button"><i class="ph ph-text-h"></i></button>
+                <span class="fmt-divider"></span>
+                <button class="fmt-btn" data-cmd="link"                title="Insert link"      type="button"><i class="ph ph-link"></i></button>
+              </div>
+
+              <!-- Link popover -->
+              <div class="link-popover" id="link-popover" hidden>
+                <input class="link-popover-input" id="link-popover-url" type="url" placeholder="https://example.com" />
+                <button class="btn btn--linkedin btn--xs" id="btn-link-insert" type="button">Insert</button>
+                <button class="btn btn--ghost btn--xs" id="btn-link-cancel" type="button">Cancel</button>
+              </div>
+
+              <div
                 id="post-text"
-                class="composer-textarea"
-                placeholder="What do you want to talk about?"
-                maxlength="3000"
+                class="composer-editor"
+                contenteditable="true"
+                role="textbox"
+                aria-multiline="true"
                 aria-label="Post content"
-              ></textarea>
+                data-placeholder="What do you want to talk about?"
+                spellcheck="true"
+              ></div>
 
               <!-- AI Regeneration bar (shown after first generation) -->
               <div class="ai-regen-bar" id="ai-regen-bar" hidden>
@@ -231,44 +193,44 @@
                 </button>
               </div>
 
-              <!-- Emoji row -->
-              <div class="composer-emoji-row">
-                <button class="composer-icon-btn" title="Add emoji" aria-label="Add emoji">
-                  <i class="ph ph-smiley"></i>
-                </button>
-                <span class="char-counter" id="char-counter">
-                  <span id="char-count">0</span> / 3000
-                </span>
-              </div>
-
               <!-- Divider -->
               <div class="composer-divider"></div>
 
               <!-- Bottom toolbar -->
               <div class="composer-toolbar">
                 <div class="composer-toolbar-left">
-                  <button class="composer-ai-btn" id="btn-ai-toolbar" title="AI Settings" aria-label="Open AI settings">
-                    <i class="ph ph-sparkle"></i> Rewrite with AI
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-emoji" title="Add emoji" aria-label="Add emoji">
+                    <i class="ph ph-smiley"></i>
+                    <span class="composer-btn-label">Emoji</span>
                   </button>
-                  <button class="composer-icon-btn" id="btn-open-drafts" title="Drafts" aria-label="Open drafts">
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-open-drafts" title="Drafts" aria-label="Open drafts">
                     <i class="ph ph-file-text"></i>
+                    <span class="composer-btn-label">Drafts</span>
                   </button>
-                  <button class="composer-icon-btn" title="Add media" aria-label="Add photo or video">
-                    <i class="ph ph-image"></i>
-                  </button>
-                  <button class="composer-icon-btn" title="Create a carousel" aria-label="Create a carousel">
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-carousel" title="Create a carousel" aria-label="Create a carousel">
                     <i class="ph ph-squares-four"></i>
+                    <span class="composer-btn-label">Carousel</span>
                   </button>
-                  <button class="composer-icon-btn" title="Tag people" aria-label="Tag people">
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-tag-people" title="Tag people" aria-label="Tag people">
                     <i class="ph ph-tag"></i>
+                    <span class="composer-btn-label">Tag</span>
                   </button>
-                  <button class="composer-icon-btn" title="More options" aria-label="More options">
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-more-options" title="More options" aria-label="More options">
                     <i class="ph ph-plus"></i>
+                    <span class="composer-btn-label">More</span>
                   </button>
                 </div>
                 <div class="composer-toolbar-right">
-                  <button class="composer-icon-btn" title="Schedule post" aria-label="Schedule post">
+                  <span class="char-counter" id="char-counter">
+                    <span id="char-count">0</span> / 3000
+                  </span>
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-schedule" title="Schedule post" aria-label="Schedule post">
                     <i class="ph ph-clock"></i>
+                    <span class="composer-btn-label">Schedule</span>
+                  </button>
+                  <button class="schedule-indicator" id="schedule-indicator" hidden>
+                    <i class="ph ph-alarm"></i>
+                    <span id="schedule-indicator-text"></span>
                   </button>
                   <button class="composer-post-btn" id="btn-post" disabled>
                     Post
@@ -290,7 +252,110 @@
                 </button>
               </div>
             </div>
-          </div>
+
+              </div><!-- /compose-main -->
+
+              <!-- ── Right: AI Sidebar ── -->
+              <aside class="compose-ai-sidebar">
+
+                <!-- AI Generation Panel (shown when LLM configured) -->
+                <div class="ai-gen-panel" id="ai-gen-panel" hidden>
+                  <div class="ai-gen-header">
+                    <span class="ai-gen-title">
+                      <i class="ph ph-sparkle"></i> Generate with AI
+                    </span>
+                    <button class="btn btn--ghost btn--xs" id="btn-ai-settings-open" title="AI settings">
+                      <i class="ph ph-gear"></i> Settings
+                    </button>
+                  </div>
+                  <div class="ai-active-config" id="ai-active-config" hidden>
+                    <span class="ai-config-badge" id="ai-config-provider"></span>
+                    <span class="ai-config-sep">/</span>
+                    <span class="ai-config-badge ai-config-badge--model" id="ai-config-model"></span>
+                  </div>
+                  <div class="ai-gen-body">
+                    <div class="ai-gen-row">
+                      <label class="ai-label" for="ai-category">Category</label>
+                      <select class="select-styled" id="ai-category">
+                        <option value="Thought Leadership">Thought Leadership</option>
+                        <option value="Job/Career Update">Job / Career Update</option>
+                        <option value="Industry News">Industry News</option>
+                        <option value="Product/Feature">Product / Feature</option>
+                        <option value="Learning & Tips">Learning &amp; Tips</option>
+                        <option value="Personal Story">Personal Story</option>
+                        <option value="Engagement Question">Engagement Question</option>
+                        <option value="Event Announcement">Event Announcement</option>
+                        <option value="Behind the Scenes">Behind the Scenes</option>
+                        <option value="Milestone & Achievement">Milestone &amp; Achievement</option>
+                        <option value="Hot Take / Opinion">Hot Take / Opinion</option>
+                        <option value="Case Study">Case Study</option>
+                        <option value="Tool / Resource">Tool / Resource</option>
+                        <option value="Hiring / Open Role">Hiring / Open Role</option>
+                        <option value="Gratitude / Shoutout">Gratitude / Shoutout</option>
+                      </select>
+                    </div>
+                    <div class="ai-gen-row">
+                      <label class="ai-label" for="ai-tone">Tone</label>
+                      <select class="select-styled" id="ai-tone">
+                        <option value="Professional">Professional</option>
+                        <option value="Casual">Casual</option>
+                        <option value="Inspirational">Inspirational</option>
+                        <option value="Educational">Educational</option>
+                        <option value="Humorous">Humorous</option>
+                        <option value="Concise">Concise</option>
+                        <option value="Storytelling">Storytelling</option>
+                        <option value="Bold & Direct">Bold &amp; Direct</option>
+                        <option value="Empathetic">Empathetic</option>
+                        <option value="Curious / Questioning">Curious / Questioning</option>
+                        <option value="Data-driven">Data-driven</option>
+                        <option value="Motivational">Motivational</option>
+                      </select>
+                    </div>
+                    <div class="ai-gen-row ai-gen-row--topic">
+                      <div class="ai-topic-label-row">
+                        <label class="ai-label" for="ai-topic">Topic</label>
+                        <button class="btn btn--ghost btn--xs ai-suggest-btn" id="btn-suggest-topics" type="button" title="Get AI topic suggestions">
+                          <i class="ph ph-sparkle"></i> Suggest
+                        </button>
+                      </div>
+                      <textarea
+                        class="input-styled ai-topic-textarea"
+                        id="ai-topic"
+                        placeholder="Describe what you want to post about — the more detail, the better the result…"
+                        maxlength="1000"
+                        rows="5"
+                        spellcheck="true"
+                      ></textarea>
+                    </div>
+                    <div class="ai-gen-actions">
+                      <button class="btn btn--linkedin btn--sm" id="btn-ai-generate" disabled>
+                        <i class="ph ph-lightning"></i> Generate
+                      </button>
+                      <button class="btn btn--ghost btn--xs" id="btn-ai-history-open" title="View generation history">
+                        <i class="ph ph-clock-clockwise"></i> History
+                      </button>
+                      <button class="btn btn--ghost btn--xs" id="btn-templates-open" title="Saved prompt templates">
+                        <i class="ph ph-bookmark"></i> Templates
+                      </button>
+                      <button class="btn btn--ghost btn--xs" id="btn-save-template" title="Save current inputs as template">
+                        <i class="ph ph-floppy-disk"></i> Save template
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Setup prompt (shown when LLM NOT configured) -->
+                <div class="ai-setup-prompt" id="ai-setup-prompt">
+                  <i class="ph ph-sparkle"></i>
+                  <span>Generate posts with AI —</span>
+                  <button class="btn-link" id="btn-ai-setup-link">set up your API key</button>
+                </div>
+
+              </aside><!-- /compose-ai-sidebar -->
+
+            </div><!-- /compose-layout -->
+
+          </div><!-- /panel-compose -->
 
           <!-- Tab: API Explorer -->
           <div class="tab-panel" data-panel="api-explorer" id="panel-api-explorer" role="tabpanel" aria-labelledby="tab-api">
@@ -301,17 +366,56 @@
               <div class="api-endpoints">
 
                 <div class="api-endpoint-card">
-                  <div class="api-endpoint-header">
-                    <span class="method-badge method-badge--get">GET</span>
-                    <code class="endpoint-path">/v2/userinfo</code>
-                    <span class="endpoint-desc">OpenID Connect user info</span>
+                  <div class="api-endpoint-info">
+                    <div class="api-endpoint-header">
+                      <span class="method-badge method-badge--get">GET</span>
+                      <code class="endpoint-path">/v2/userinfo</code>
+                    </div>
+                    <span class="endpoint-desc">OpenID Connect user info — name, email, picture, locale, sub</span>
+                    <div class="api-endpoint-meta">Scopes: <code>openid profile email</code> · Authenticated</div>
                   </div>
                   <button class="btn btn--sm btn--primary" data-api-call="userinfo">
                     <i class="ph ph-play"></i> Run
                   </button>
                 </div>
 
+                <div class="api-endpoint-card">
+                  <div class="api-endpoint-info">
+                    <div class="api-endpoint-header">
+                      <span class="method-badge method-badge--get">GET</span>
+                      <code class="endpoint-path">/.well-known/openid-configuration</code>
+                    </div>
+                    <span class="endpoint-desc">OIDC discovery — authorization &amp; token endpoints, supported scopes, claims, signing algorithms</span>
+                    <div class="api-endpoint-meta">Public · No token required</div>
+                  </div>
+                  <button class="btn btn--sm btn--primary" data-api-call="oidc-discovery">
+                    <i class="ph ph-play"></i> Run
+                  </button>
+                </div>
+
+                <div class="api-endpoint-card">
+                  <div class="api-endpoint-info">
+                    <div class="api-endpoint-header">
+                      <span class="method-badge method-badge--get">GET</span>
+                      <code class="endpoint-path">/oauth/openid/jwks</code>
+                    </div>
+                    <span class="endpoint-desc">JSON Web Key Set — LinkedIn's public keys used to verify signed ID tokens</span>
+                    <div class="api-endpoint-meta">Public · No token required</div>
+                  </div>
+                  <button class="btn btn--sm btn--primary" data-api-call="jwks">
+                    <i class="ph ph-play"></i> Run
+                  </button>
+                </div>
+
               </div>
+
+              <p class="api-explorer-note">
+                <i class="ph ph-info"></i>
+                <strong>/v2/me</strong> and <strong>/v2/emailAddress</strong> require the legacy
+                <code>r_liteprofile</code> / <code>r_emailaddress</code> scopes, which LinkedIn
+                removed from self-serve apps. Only OIDC scopes
+                (<code>openid profile email w_member_social</code>) are available on free access.
+              </p>
               <div class="api-response-wrap">
                 <div class="api-response-header">
                   <span class="api-response-label">Response</span>
@@ -415,11 +519,6 @@
       <div class="modal-body">
 
         <div class="form-group">
-          <label class="form-label" for="ai-provider-select">Provider</label>
-          <select class="select-styled" id="ai-provider-select"></select>
-        </div>
-
-        <div class="form-group">
           <label class="form-label" for="ai-apikey-input">API Key</label>
           <div class="input-with-btn">
             <input
@@ -438,8 +537,20 @@
         </div>
 
         <div class="form-group">
+          <label class="form-label" for="ai-provider-select">Provider</label>
+          <select class="select-styled" id="ai-provider-select" disabled></select>
+          <p class="form-hint" id="provider-hint" hidden>Enter an API key first to choose a provider.</p>
+        </div>
+
+        <div class="form-group">
           <label class="form-label" for="ai-model-select">Model</label>
-          <select class="select-styled" id="ai-model-select"></select>
+          <div class="model-select-wrap">
+            <select class="select-styled" id="ai-model-select" disabled></select>
+            <div class="model-loading" id="model-loading" hidden>
+              <span class="spinner spinner--xs"></span> Loading models…
+            </div>
+          </div>
+          <p class="form-hint" id="model-hint">Choose a provider to load available models.</p>
         </div>
 
         <div class="ai-status" id="ai-status" hidden></div>
@@ -466,6 +577,9 @@
       <div class="drawer-actions">
         <button class="btn btn--ghost btn--sm" id="btn-save-draft">
           <i class="ph ph-plus"></i> Save current as draft
+        </button>
+        <button class="btn btn--ghost btn--sm btn--danger-ghost" id="btn-delete-all-drafts" title="Delete all drafts">
+          <i class="ph ph-trash"></i> Delete all
         </button>
       </div>
       <div id="drafts-list" class="drafts-list"></div>
@@ -509,6 +623,112 @@
       <div class="modal-footer">
         <button class="btn btn--ghost" id="btn-templates-cancel">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ EMOJI PICKER ═══════════════ -->
+  <div class="composer-popover" id="emoji-picker" hidden role="dialog" aria-label="Emoji picker">
+    <div class="emoji-picker-search">
+      <input class="input-styled emoji-search-input" id="emoji-search" type="text" placeholder="Search emoji…" autocomplete="off" />
+    </div>
+    <div class="emoji-grid" id="emoji-grid"></div>
+  </div>
+
+  <!-- ═══════════════ TAG PEOPLE POPOVER ═══════════════ -->
+  <div class="composer-popover" id="tag-people-popover" hidden role="dialog" aria-label="Tag a person">
+    <p class="popover-label">Type a name to insert an @mention</p>
+    <div class="popover-row">
+      <input class="input-styled" id="tag-name-input" type="text" placeholder="e.g. Jane Smith" maxlength="100" autocomplete="off" />
+      <button class="btn btn--linkedin btn--sm" id="btn-tag-insert">Insert</button>
+    </div>
+    <p class="popover-hint">Note: LinkedIn's API doesn't support mention linking — this inserts plain @Name text.</p>
+  </div>
+
+  <!-- ═══════════════ MORE OPTIONS POPOVER ═══════════════ -->
+  <div class="composer-popover composer-popover--menu" id="more-options-popover" hidden role="menu">
+    <button class="popover-menu-item" id="opt-word-count" role="menuitem">
+      <i class="ph ph-text-aa"></i> Word &amp; character count
+    </button>
+    <button class="popover-menu-item" id="opt-copy-text" role="menuitem">
+      <i class="ph ph-copy"></i> Copy post text
+    </button>
+    <button class="popover-menu-item" id="opt-clear-editor" role="menuitem">
+      <i class="ph ph-trash"></i> Clear editor
+    </button>
+    <hr class="popover-divider" />
+    <button class="popover-menu-item" id="opt-paste-plain" role="menuitem">
+      <i class="ph ph-clipboard-text"></i> Paste as plain text
+    </button>
+  </div>
+
+  <!-- ═══════════════ SCHEDULE POST MODAL ═══════════════ -->
+  <div class="modal-overlay" id="modal-schedule" hidden aria-modal="true" role="dialog" aria-labelledby="modal-schedule-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-schedule-title">
+          <i class="ph ph-clock"></i> Schedule Post
+        </h2>
+        <button class="btn-icon modal-close" id="btn-schedule-close" aria-label="Close">
+          <i class="ph ph-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="schedule-notice">
+          <i class="ph ph-info"></i>
+          LinkedIn's scheduling API requires Partner Program access. This sets a reminder — you'll need to post manually at the chosen time.
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="schedule-date">Date</label>
+          <input class="input-styled" id="schedule-date" type="date" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="schedule-time">Time</label>
+          <input class="input-styled" id="schedule-time" type="time" />
+        </div>
+        <div class="schedule-preview" id="schedule-preview" hidden>
+          <i class="ph ph-alarm"></i>
+          <span id="schedule-preview-text"></span>
+          <button class="btn btn--ghost btn--xs" id="btn-schedule-clear">
+            <i class="ph ph-x"></i> Clear
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn--ghost" id="btn-schedule-cancel">Cancel</button>
+        <button class="btn btn--linkedin" id="btn-schedule-save">
+          <i class="ph ph-alarm"></i> Set reminder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TOPIC SUGGESTIONS POPUP ═══════════════ -->
+  <div class="topic-suggestions-popup" id="topic-suggestions-popup" hidden role="dialog" aria-label="Topic suggestions">
+    <div class="topic-suggestions-header">
+      <span class="topic-suggestions-title"><i class="ph ph-sparkle"></i> Topic Ideas</span>
+      <button class="btn-icon topic-suggestions-close" id="btn-suggestions-close" aria-label="Close">
+        <i class="ph ph-x"></i>
+      </button>
+    </div>
+    <div class="topic-suggestions-seed">
+      <textarea
+        class="input-styled topic-seed-input"
+        id="topic-seed-input"
+        placeholder="Optional: describe your own idea, keywords, or context…"
+        rows="2"
+        maxlength="300"
+        spellcheck="true"
+      ></textarea>
+      <button class="btn btn--linkedin btn--xs topic-seed-go" id="btn-seed-suggest" type="button">
+        <i class="ph ph-lightning"></i> Go
+      </button>
+    </div>
+    <p class="topic-suggestions-hint" id="topic-suggestions-hint" hidden></p>
+    <ul class="topic-suggestions-list" id="topic-suggestions-list"></ul>
+    <div class="topic-suggestions-footer">
+      <button class="btn btn--ghost btn--xs" id="btn-suggestions-refresh" type="button">
+        <i class="ph ph-arrow-clockwise"></i> More ideas
+      </button>
     </div>
   </div>
 

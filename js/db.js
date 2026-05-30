@@ -44,6 +44,11 @@ export async function deleteDraft(id) {
   return await apiFetch('DELETE', `/api/drafts/${id}`);
 }
 
+export async function deleteAllDrafts() {
+  const drafts = await getDrafts();
+  await Promise.all(drafts.map(d => apiFetch('DELETE', `/api/drafts/${d.id}`)));
+}
+
 // ── AI Generation History ─────────────────────────────────────
 
 export async function saveAiHistory({ topic, category, tone, provider, model, feedback, content }) {

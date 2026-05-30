@@ -3,6 +3,7 @@
 //   GET  /callback       — OAuth token exchange (LinkedIn redirects here)
 //   GET  /api/userinfo   — proxies GET https://api.linkedin.com/v2/userinfo
 //   POST /api/ugcPosts   — proxies POST https://api.linkedin.com/v2/ugcPosts
+//   GET  /oidc/*         — proxies GET https://www.linkedin.com/oauth/* (public OIDC endpoints)
 //   GET  /health         — health check
 
 // Allowed frontend origins — both GitHub Pages and localhost
@@ -32,6 +33,10 @@ export default {
 
     if (url.pathname.startsWith('/api/')) {
       return handleApiProxy(request, url, origin);
+    }
+
+    if (url.pathname.startsWith('/oidc/')) {
+      return handleOidcProxy(url, origin);
     }
 
     if (url.pathname === '/health') {
@@ -168,6 +173,26 @@ async function handleApiProxy(request, url, origin) {
   });
 }
 
+// ── OIDC proxy (public LinkedIn OAuth endpoints) ──────────────
+// Maps /oidc/<path> → https://www.linkedin.com/oauth/<path>
+// No auth required — these are public endpoints.
+
+async function handleOidcProxy(url, origin) {
+  const liPath = url.pathname.replace(/^\/oidc\//, '/oauth/') + url.search;
+  const liUrl  = `https://www.linkedin.com${liPath}`;
+
+  const liResponse = await fetch(liUrl, { method: 'GET' });
+  const body = await liResponse.text();
+
+  return new Response(body, {
+    status: liResponse.status,
+    headers: {
+      'Content-Type': liResponse.headers.get('Content-Type') || 'application/json',
+      ...corsHeaders(origin),
+    },
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────
 
 function getRequestOrigin(request) {
@@ -180,7 +205,7 @@ function corsHeaders(origin) {
     'Access-Control-Allow-Origin':   origin || ALLOWED_ORIGINS[0],
     'Access-Control-Allow-Methods':  'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers':  'Authorization, Content-Type, X-Restli-Protocol-Version',
-    'Access-Control-Expose-Headers': 'X-RestLi-Id',
+    'Access-Control-Expose-Headers': 'X-RestLi-Id, X-Asset-Id, Location',
     'Access-Control-Max-Age':        '86400',
   };
 }

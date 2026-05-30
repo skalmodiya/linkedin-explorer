@@ -33,6 +33,17 @@ export async function initDrafts(getComposerState, setComposerState) {
     renderDraftsList();
   });
 
+  // Delete all drafts
+  document.getElementById('btn-delete-all-drafts')?.addEventListener('click', async () => {
+    if (!_serverOnline) return;
+    const drafts = await db.getDrafts();
+    if (!drafts.length) return;
+    if (!confirm(`Delete all ${drafts.length} draft${drafts.length === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    await db.deleteAllDrafts();
+    _activeDraftId = null;
+    renderDraftsList();
+  });
+
   // Autosave on textarea input
   document.getElementById('post-text')?.addEventListener('input', scheduleAutosave);
 }
@@ -88,6 +99,9 @@ async function renderDraftsList() {
   }
 
   const drafts = await db.getDrafts();
+
+  const deleteAllBtn = document.getElementById('btn-delete-all-drafts');
+  if (deleteAllBtn) deleteAllBtn.hidden = drafts.length === 0;
 
   if (!drafts.length) {
     container.innerHTML = `<p class="drafts-empty">No drafts yet. Start typing to auto-save.</p>`;

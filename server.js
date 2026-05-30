@@ -197,15 +197,26 @@ function proxyLlm(req, res, targetPath, body) {
     },
   };
 
+  console.log(`[LLM proxy] ${req.method} ${targetPath} → ${LLM_HOST}:${LLM_PORT}`);
+
   const proxy = http.request(options, (upstream) => {
-    res.writeHead(upstream.statusCode, {
-      'Content-Type': upstream.headers['content-type'] || 'application/json',
-      ...CORS_HEADERS,
+    const chunks = [];
+    upstream.on('data', c => chunks.push(c));
+    upstream.on('end', () => {
+      const responseBody = Buffer.concat(chunks);
+      if (upstream.statusCode >= 400) {
+        console.log(`[LLM proxy] ← ${upstream.statusCode}: ${responseBody.toString().slice(0, 500)}`);
+      }
+      res.writeHead(upstream.statusCode, {
+        'Content-Type': upstream.headers['content-type'] || 'application/json',
+        ...CORS_HEADERS,
+      });
+      res.end(responseBody);
     });
-    upstream.pipe(res);
   });
 
   proxy.on('error', (err) => {
+    console.log(`[LLM proxy] connection error: ${err.message}`);
     jsonResp(res, 502, { error: 'LLM proxy error', message: err.message });
   });
 
@@ -213,7 +224,43 @@ function proxyLlm(req, res, targetPath, body) {
   proxy.end();
 }
 
-// ── API route handler ─────────────────────────────────────────
+function proxyLlmGet(req, res, targetPath) {
+  const options = {
+    hostname: LLM_HOST,
+    port:     LLM_PORT,
+    path:     targetPath,
+    method:   'GET',
+    headers: {
+      'Authorization': req.headers['authorization'] || '',
+      'x-api-key':     req.headers['x-api-key']     || '',
+    },
+  };
+
+  console.log(`[LLM proxy GET] ${targetPath} → ${LLM_HOST}:${LLM_PORT}`);
+
+  const proxy = http.request(options, (upstream) => {
+    const chunks = [];
+    upstream.on('data', c => chunks.push(c));
+    upstream.on('end', () => {
+      const responseBody = Buffer.concat(chunks);
+      if (upstream.statusCode >= 400) {
+        console.log(`[LLM proxy GET] ← ${upstream.statusCode}: ${responseBody.toString().slice(0, 300)}`);
+      }
+      res.writeHead(upstream.statusCode, {
+        'Content-Type': upstream.headers['content-type'] || 'application/json',
+        ...CORS_HEADERS,
+      });
+      res.end(responseBody);
+    });
+  });
+
+  proxy.on('error', (err) => {
+    console.log(`[LLM proxy GET] connection error: ${err.message}`);
+    jsonResp(res, 502, { error: 'LLM proxy error', message: err.message });
+  });
+
+  proxy.end();
+}
 
 function handleApi(req, res, method, pathname, body) {
   if (!db) {
@@ -336,7 +383,11 @@ const server = http.createServer(async (req, res) => {
   if (pathname.startsWith('/llm/')) {
     const targetPath = pathname.slice(4) + (parsed.search ? parsed.search : '');
     const body = await readBody(req);
-    proxyLlm(req, res, targetPath, body);
+    if (method === 'GET') {
+      proxyLlmGet(req, res, targetPath);
+    } else {
+      proxyLlm(req, res, targetPath, body);
+    }
     return;
   }
 
