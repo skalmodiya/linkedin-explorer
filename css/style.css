@@ -1608,6 +1608,14 @@ select:disabled { opacity: .5; cursor: not-allowed; }
   margin: 0 0 .5rem;
   white-space: pre-wrap;
 }
+.post-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  margin-bottom: .5rem;
+  flex-wrap: wrap;
+}
 .post-history-meta {
   display: flex;
   align-items: center;
@@ -1618,6 +1626,15 @@ select:disabled { opacity: .5; cursor: not-allowed; }
 .post-history-date {
   font-size: .75rem;
   color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+.post-history-badges {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
 }
 .post-history-badge {
   font-size: .7rem;
@@ -1627,6 +1644,43 @@ select:disabled { opacity: .5; cursor: not-allowed; }
   background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+.post-history-badge--tone {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+.post-history-actions {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-top: .5rem;
+}
+.post-history-expand {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: .8rem;
+  color: var(--color-primary);
+  cursor: pointer;
+  margin-bottom: .35rem;
+}
+.post-history-expand:hover {
+  text-decoration: underline;
+}
+.post-history-load,
+.post-history-copy {
+  flex-shrink: 0;
+}
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
 }
 .post-history-link {
   display: inline-flex;

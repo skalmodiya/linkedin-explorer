@@ -878,21 +878,80 @@ async function initPostHistory() {
   }
 
   container.innerHTML = posts.map(p => {
-    const preview = (p.content || '').slice(0, 160) + ((p.content || '').length > 160 ? '…' : '');
+    const full    = p.content || '';
+    const preview = full.slice(0, 200) + (full.length > 200 ? '…' : '');
     const date    = p.posted_at ? new Date(p.posted_at + 'Z').toLocaleString() : '—';
-    const viewUrl = p.post_urn ? `https://www.linkedin.com/feed/update/${p.post_urn}/` : null;
+    const viewUrl = p.post_urn ? `https://www.linkedin.com/feed/update/${encodeURIComponent(p.post_urn)}/` : null;
+    const hasMore = full.length > 200;
     return `
-      <div class="post-history-card">
-        <p class="post-history-preview">${escHtml(preview)}</p>
-        <div class="post-history-meta">
-          <span class="post-history-date">${date}</span>
-          ${p.category ? `<span class="post-history-badge">${escHtml(p.category)}</span>` : ''}
+      <div class="post-history-card" data-id="${p.id}">
+        <div class="post-history-header">
+          <span class="post-history-date"><i class="ph ph-calendar-blank"></i> ${date}</span>
+          <div class="post-history-badges">
+            ${p.category ? `<span class="post-history-badge">${escHtml(p.category)}</span>` : ''}
+            ${p.tone     ? `<span class="post-history-badge post-history-badge--tone">${escHtml(p.tone)}</span>` : ''}
+          </div>
         </div>
-        ${viewUrl ? `<a class="btn btn--ghost btn--xs post-history-link" href="${viewUrl}" target="_blank" rel="noopener">
-          <i class="ph ph-arrow-square-out"></i> View on LinkedIn
-        </a>` : ''}
+        <p class="post-history-preview" data-full="${escAttr(full)}" data-expanded="false">${escHtml(preview)}</p>
+        ${hasMore ? `<button class="btn-link post-history-expand" type="button">Show more</button>` : ''}
+        <div class="post-history-actions">
+          <button class="btn btn--ghost btn--xs post-history-load" data-content="${escAttr(full)}" title="Load into composer to edit and repost">
+            <i class="ph ph-pencil-simple"></i> Edit &amp; repost
+          </button>
+          <button class="btn btn--ghost btn--xs post-history-copy" data-content="${escAttr(full)}" title="Copy post text">
+            <i class="ph ph-copy"></i> Copy
+          </button>
+          ${viewUrl ? `<a class="btn btn--ghost btn--xs" href="${viewUrl}" target="_blank" rel="noopener" title="View on LinkedIn">
+            <i class="ph ph-arrow-square-out"></i> View on LinkedIn
+          </a>` : ''}
+        </div>
       </div>`;
   }).join('');
+
+  // Show more / show less
+  container.querySelectorAll('.post-history-expand').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card    = btn.closest('.post-history-card');
+      const preview = card.querySelector('.post-history-preview');
+      const expanded = preview.dataset.expanded === 'true';
+      if (expanded) {
+        preview.textContent = preview.dataset.full.slice(0, 200) + '…';
+        preview.dataset.expanded = 'false';
+        btn.textContent = 'Show more';
+      } else {
+        preview.textContent = preview.dataset.full;
+        preview.dataset.expanded = 'true';
+        btn.textContent = 'Show less';
+      }
+    });
+  });
+
+  // Load into composer
+  container.querySelectorAll('.post-history-load').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const editor = document.getElementById('post-text');
+      if (editor) {
+        editor.innerHTML = escHtml(btn.dataset.content).replace(/\n/g, '<br>');
+        editor.dispatchEvent(new Event('input'));
+        editor.focus();
+      }
+      // Switch to Compose tab
+      document.querySelector('[data-tab="compose"]')?.click();
+      ui.showToast('Post loaded into composer', 'success', 2500);
+    });
+  });
+
+  // Copy
+  container.querySelectorAll('.post-history-copy').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.content);
+        ui.showToast('Post text copied!', 'success', 2000);
+      } catch (_) {
+        ui.showToast('Copy failed — try selecting text manually.', 'error');
+      }
+    });
+  });
 }
 
 // ── AI History Modal ──────────────────────────────────────────
