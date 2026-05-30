@@ -111,24 +111,28 @@ function generateState() {
 
 function buildAuthUrl(state) {
   const workerCallback = `${CONFIG.WORKER_URL}/callback`;
+  // Embed the current origin into state so the Worker redirects back here
+  // Format: "<nonce>|<origin>"  e.g. "a1b2c3...|http://localhost:3000"
+  const stateWithOrigin = `${state}|${window.location.origin}`;
   const params = new URLSearchParams({
     response_type: 'code',
     client_id:     CONFIG.CLIENT_ID,
     redirect_uri:  workerCallback,
-    state,
+    state:         stateWithOrigin,
     scope:         CONFIG.SCOPES,
   });
   return `${LINKEDIN_AUTH_URL}?${params}`;
 }
 
 function validateState(returnedState) {
-  const stored = sessionStorage.getItem(SESSION_KEYS.STATE);
+  const stored   = sessionStorage.getItem(SESSION_KEYS.STATE);
   const storedTs = parseInt(sessionStorage.getItem(SESSION_KEYS.STATE_TS) || '0', 10);
 
   sessionStorage.removeItem(SESSION_KEYS.STATE);
   sessionStorage.removeItem(SESSION_KEYS.STATE_TS);
   sessionStorage.removeItem(SESSION_KEYS.METHOD);
 
+  // returnedState is the raw nonce (Worker strips the "|origin" part before redirecting)
   if (!stored || stored !== returnedState) return false;
   if (Date.now() - storedTs > STATE_TTL_MS) return false;
   return true;

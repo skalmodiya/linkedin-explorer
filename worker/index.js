@@ -5,13 +5,23 @@
 //   POST /api/ugcPosts   — proxies POST https://api.linkedin.com/v2/ugcPosts
 //   GET  /health         — health check
 
+// Allowed frontend origins — both GitHub Pages and localhost
+const ALLOWED_ORIGINS = [
+  'https://skalmodiya.github.io',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000',
+];
+
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
+    const url    = new URL(request.url);
+    const origin = getRequestOrigin(request);
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(env.APP_ORIGIN) });
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
 
     if (url.pathname === '/callback') {
@@ -19,13 +29,13 @@ export default {
     }
 
     if (url.pathname.startsWith('/api/')) {
-      return handleApiProxy(request, url, env);
+      return handleApiProxy(request, url, origin);
     }
 
     if (url.pathname === '/health') {
       return new Response(JSON.stringify({ status: 'ok', time: new Date().toISOString() }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(env.APP_ORIGIN) },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
       });
     }
 
@@ -41,9 +51,26 @@ async function handleCallback(url, env) {
   const error            = url.searchParams.get('error');
   const errorDescription = url.searchParams.get('error_description') || '';
 
-  const appOrigin = (env.APP_ORIGIN || '').replace(/\/$/, '');
-  const appPath   = env.APP_PATH ? '/' + env.APP_PATH.replace(/^\//, '').replace(/\/$/, '') : '';
-  const appBase   = appOrigin + appPath + '/';
+  // The state param encodes the return origin: "<nonce>|<origin>"
+  // e.g. "a1b2c3d4...|http://localhost:3000"
+  // Fall back to the default APP_ORIGIN if no origin is encoded
+  let returnOrigin = env.APP_ORIGIN || 'https://skalmodiya.github.io';
+  let nonce = state || '';
+
+  if (state && state.includes('|')) {
+    const parts = state.split('|');
+    nonce        = parts[0];
+    const encodedOrigin = parts[1];
+    // Only allow whitelisted origins
+    if (ALLOWED_ORIGINS.includes(encodedOrigin)) {
+      returnOrigin = encodedOrigin;
+    }
+  }
+
+  const appPath = env.APP_PATH ? '/' + env.APP_PATH.replace(/^\//, '').replace(/\/$/, '') : '';
+  // localhost has no sub-path
+  const isLocalhost = returnOrigin.startsWith('http://localhost') || returnOrigin.startsWith('http://127');
+  const appBase = returnOrigin + (isLocalhost ? '/' : appPath + '/');
 
   const redirectError = (errCode, description) => {
     const dest = new URL(appBase);
@@ -52,8 +79,8 @@ async function handleCallback(url, env) {
   };
 
   if (error) return redirectError(error, errorDescription);
-  if (!code || !state) return redirectError('invalid_callback', 'Missing code or state parameter.');
-  if (!/^[0-9a-f]{32,64}$/.test(state)) return redirectError('invalid_state', 'Malformed state parameter.');
+  if (!code || !nonce) return redirectError('invalid_callback', 'Missing code or state parameter.');
+  if (!/^[0-9a-f]{32,64}$/.test(nonce)) return redirectError('invalid_state', 'Malformed state parameter.');
 
   let tokenData;
   try {
@@ -66,7 +93,7 @@ async function handleCallback(url, env) {
   dest.hash = [
     `token=${encodeURIComponent(tokenData.access_token)}`,
     `expires_in=${tokenData.expires_in || 0}`,
-    `state=${encodeURIComponent(state)}`,
+    `state=${encodeURIComponent(nonce)}`,
   ].join('&');
 
   return Response.redirect(dest.toString(), 302);
@@ -103,56 +130,55 @@ async function exchangeCode(code, env) {
 }
 
 // ── API proxy ─────────────────────────────────────────────────
-// Forwards authenticated requests to LinkedIn API server-side,
-// avoiding CORS restrictions in the browser.
 
-async function handleApiProxy(request, url, env) {
-  // Extract Bearer token from Authorization header
+async function handleApiProxy(request, url, origin) {
   const authHeader = request.headers.get('Authorization') || '';
   if (!authHeader.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'missing_token' }), {
       status: 401,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders(env.APP_ORIGIN) },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
     });
   }
 
-  // Map /api/* → https://api.linkedin.com/v2/*
   const liPath = url.pathname.replace(/^\/api\//, '/v2/') + url.search;
   const liUrl  = `https://api.linkedin.com${liPath}`;
 
-  // Forward the request to LinkedIn
   const liResponse = await fetch(liUrl, {
     method:  request.method,
     headers: {
-      'Authorization':              authHeader,
-      'Content-Type':               request.headers.get('Content-Type') || 'application/json',
-      'X-Restli-Protocol-Version':  '2.0.0',
+      'Authorization':             authHeader,
+      'Content-Type':              request.headers.get('Content-Type') || 'application/json',
+      'X-Restli-Protocol-Version': '2.0.0',
     },
     body: request.method !== 'GET' && request.method !== 'HEAD'
       ? await request.text()
       : undefined,
   });
 
-  // Stream response back with CORS headers added
   const responseBody = await liResponse.text();
   return new Response(responseBody, {
     status:  liResponse.status,
     headers: {
       'Content-Type': liResponse.headers.get('Content-Type') || 'application/json',
       'X-RestLi-Id':  liResponse.headers.get('X-RestLi-Id') || '',
-      ...corsHeaders(env.APP_ORIGIN),
+      ...corsHeaders(origin),
     },
   });
 }
 
-// ── CORS headers ──────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
+
+function getRequestOrigin(request) {
+  const origin = request.headers.get('Origin') || '';
+  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
 
 function corsHeaders(origin) {
   return {
-    'Access-Control-Allow-Origin':  origin || '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Restli-Protocol-Version',
-    'Access-Control-Expose-Headers':'X-RestLi-Id',
-    'Access-Control-Max-Age':       '86400',
+    'Access-Control-Allow-Origin':   origin || ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Methods':  'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers':  'Authorization, Content-Type, X-Restli-Protocol-Version',
+    'Access-Control-Expose-Headers': 'X-RestLi-Id',
+    'Access-Control-Max-Age':        '86400',
   };
 }
