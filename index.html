@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LinkedIn API Explorer</title>
+  <meta name="description" content="Explore LinkedIn's free API — login, view your profile, and create posts." />
+
+  <!-- Content Security Policy -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' https://unpkg.com;
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' https://*.licdn.com https://*.linkedin.com data: blob:;
+    connect-src 'self' https://api.linkedin.com https://*.workers.dev;
+    font-src 'self';
+    frame-ancestors 'none';
+  " />
+
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1/src/index.js" defer></script>
+</head>
+<body>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header class="app-header" id="app-header" hidden>
+    <div class="header-inner">
+      <div class="header-brand">
+        <svg class="brand-logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+        </svg>
+        <span class="brand-name">LinkedIn Explorer</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="btn-theme" title="Toggle theme" aria-label="Toggle dark/light theme">
+          <i class="ph ph-moon" id="theme-icon"></i>
+        </button>
+        <button class="btn btn--ghost btn--sm" id="btn-logout" hidden>
+          <i class="ph ph-sign-out"></i>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════ SCREENS ═══════════════ -->
+  <main class="app-main" id="app-main">
+
+    <!-- ── Screen: Login ── -->
+    <section id="screen-login" class="screen screen--login active" aria-label="Login">
+      <div class="login-hero">
+        <div class="login-card">
+          <div class="login-logo">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </div>
+          <h1 class="login-title">LinkedIn API Explorer</h1>
+          <p class="login-subtitle">
+            Explore everything the free LinkedIn API offers — profile, posting, and more.
+            Your data stays in your browser session only.
+          </p>
+          <ul class="feature-list">
+            <li><i class="ph ph-user-circle"></i> View your LinkedIn profile</li>
+            <li><i class="ph ph-pencil-simple"></i> Create text posts</li>
+            <li><i class="ph ph-lock-simple"></i> No data stored — session only</li>
+            <li><i class="ph ph-code"></i> Learn the LinkedIn API live</li>
+          </ul>
+          <button class="btn btn--linkedin btn--lg" id="btn-login">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            Sign in with LinkedIn
+          </button>
+          <p class="login-notice">
+            By signing in you authorize this app to read your profile and post on your behalf,
+            using LinkedIn's official OAuth 2.0 flow. No credentials are stored.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Screen: Loading ── -->
+    <section id="screen-loading" class="screen screen--loading" aria-label="Loading" aria-live="polite">
+      <div class="loading-content">
+        <div class="spinner" aria-hidden="true"></div>
+        <p id="loading-message">Authenticating with LinkedIn…</p>
+      </div>
+    </section>
+
+    <!-- ── Screen: Profile / Dashboard ── -->
+    <section id="screen-profile" class="screen screen--profile" aria-label="Your profile and dashboard">
+      <div class="dashboard-grid">
+
+        <!-- Profile Card -->
+        <aside class="profile-card" id="profile-card">
+          <div class="profile-avatar-wrap">
+            <img id="profile-avatar" class="profile-avatar" src="" alt="" width="96" height="96" />
+            <div id="profile-avatar-fallback" class="profile-avatar profile-avatar--fallback" aria-hidden="true"></div>
+          </div>
+          <div class="profile-info">
+            <h2 class="profile-name" id="profile-name"></h2>
+            <p class="profile-email" id="profile-email"></p>
+            <p class="profile-locale" id="profile-locale"></p>
+          </div>
+          <div class="profile-meta">
+            <span class="badge badge--verified" id="badge-verified" hidden>
+              <i class="ph ph-check-circle"></i> Email verified
+            </span>
+          </div>
+          <a class="btn btn--ghost btn--sm profile-linkedin-btn" href="https://www.linkedin.com/feed/" target="_blank" rel="noopener noreferrer" id="profile-linkedin-link">
+            <i class="ph ph-arrow-square-out"></i>
+            Open LinkedIn
+          </a>
+        </aside>
+
+        <!-- Main content -->
+        <div class="main-content">
+
+          <!-- Tabs -->
+          <div class="tabs" role="tablist">
+            <button class="tab active" role="tab" aria-selected="true" data-tab="compose" id="tab-compose">
+              <i class="ph ph-pencil-simple-line"></i> Create Post
+            </button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="api-explorer" id="tab-api">
+              <i class="ph ph-terminal-window"></i> API Explorer
+            </button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="token-info" id="tab-token">
+              <i class="ph ph-key"></i> Token Info
+            </button>
+          </div>
+
+          <!-- Tab: Compose -->
+          <div class="tab-panel active" data-panel="compose" id="panel-compose" role="tabpanel" aria-labelledby="tab-compose">
+            <div class="composer-card">
+              <div class="composer-header">
+                <img id="composer-avatar" class="composer-avatar" src="" alt="" width="40" height="40" />
+                <div>
+                  <p class="composer-name" id="composer-name"></p>
+                  <p class="composer-audience">
+                    <i class="ph ph-globe-hemisphere-west"></i> Anyone
+                  </p>
+                </div>
+              </div>
+              <textarea
+                id="post-text"
+                class="composer-textarea"
+                placeholder="What do you want to talk about?"
+                maxlength="3000"
+                rows="5"
+                aria-label="Post content"
+              ></textarea>
+              <div class="composer-footer">
+                <div class="char-counter" id="char-counter">
+                  <span id="char-count">0</span> / 3000
+                </div>
+                <button class="btn btn--linkedin" id="btn-post" disabled>
+                  <i class="ph ph-paper-plane-tilt"></i>
+                  Post
+                </button>
+              </div>
+            </div>
+
+            <!-- Post result -->
+            <div class="post-result" id="post-result" hidden>
+              <div class="post-result-inner">
+                <i class="ph ph-check-circle post-result-icon"></i>
+                <div>
+                  <p class="post-result-title">Post published successfully!</p>
+                  <p class="post-result-urn" id="post-result-urn"></p>
+                </div>
+                <button class="btn btn--ghost btn--sm" id="btn-copy-link">
+                  <i class="ph ph-copy"></i> Copy link
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: API Explorer -->
+          <div class="tab-panel" data-panel="api-explorer" id="panel-api-explorer" role="tabpanel" aria-labelledby="tab-api">
+            <div class="api-explorer">
+              <p class="api-explorer-intro">
+                Make live API calls to LinkedIn. Responses appear below.
+              </p>
+              <div class="api-endpoints">
+
+                <div class="api-endpoint-card">
+                  <div class="api-endpoint-header">
+                    <span class="method-badge method-badge--get">GET</span>
+                    <code class="endpoint-path">/v2/userinfo</code>
+                    <span class="endpoint-desc">OpenID Connect user info</span>
+                  </div>
+                  <button class="btn btn--sm btn--primary" data-api-call="userinfo">
+                    <i class="ph ph-play"></i> Run
+                  </button>
+                </div>
+
+              </div>
+              <div class="api-response-wrap">
+                <div class="api-response-header">
+                  <span class="api-response-label">Response</span>
+                  <span class="api-response-status" id="api-response-status"></span>
+                  <button class="btn btn--icon btn--xs" id="btn-copy-response" title="Copy response" hidden>
+                    <i class="ph ph-copy"></i>
+                  </button>
+                </div>
+                <pre class="api-response" id="api-response"><code>// Click Run on any endpoint above</code></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Token Info -->
+          <div class="tab-panel" data-panel="token-info" id="panel-token-info" role="tabpanel" aria-labelledby="tab-token">
+            <div class="token-info-card">
+              <h3 class="token-info-title">
+                <i class="ph ph-shield-check"></i> Session Token
+              </h3>
+              <p class="token-info-note">
+                Your access token is stored only in <code>sessionStorage</code> — it is cleared automatically when you close this tab. It is never sent to any server except LinkedIn's API.
+              </p>
+              <div class="token-grid">
+                <div class="token-row">
+                  <span class="token-label">Scopes granted</span>
+                  <span class="token-value" id="token-scopes">openid profile email w_member_social</span>
+                </div>
+                <div class="token-row">
+                  <span class="token-label">Expires</span>
+                  <span class="token-value" id="token-expiry">—</span>
+                </div>
+                <div class="token-row">
+                  <span class="token-label">Storage</span>
+                  <span class="token-value">sessionStorage (this tab only)</span>
+                </div>
+                <div class="token-row">
+                  <span class="token-label">Token preview</span>
+                  <span class="token-value token-value--masked" id="token-preview">—</span>
+                </div>
+              </div>
+              <button class="btn btn--danger btn--sm" id="btn-revoke">
+                <i class="ph ph-sign-out"></i> Sign out &amp; clear token
+              </button>
+            </div>
+          </div>
+
+        </div><!-- /main-content -->
+      </div><!-- /dashboard-grid -->
+    </section>
+
+    <!-- ── Screen: Error ── -->
+    <section id="screen-error" class="screen screen--error" aria-label="Error" aria-live="assertive">
+      <div class="error-card">
+        <i class="ph ph-warning-circle error-icon"></i>
+        <h2 class="error-title">Something went wrong</h2>
+        <p class="error-message" id="error-message">An unexpected error occurred.</p>
+        <div class="error-actions">
+          <button class="btn btn--linkedin" id="btn-retry">
+            <i class="ph ph-arrow-clockwise"></i> Try again
+          </button>
+          <button class="btn btn--ghost" id="btn-back-login">
+            <i class="ph ph-house"></i> Back to login
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Theme toggle (visible on login screen too) -->
+  <button class="btn-icon floating-theme" id="btn-theme-login" title="Toggle theme" aria-label="Toggle dark/light theme">
+    <i class="ph ph-moon" id="theme-icon-login"></i>
+  </button>
+
+  <!-- Entry point — must be after DOM -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

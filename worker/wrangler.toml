@@ -1,0 +1,28 @@
+name            = "linkedin-oauth-proxy"
+main            = "index.js"
+compatibility_date = "2026-05-30"
+workers_dev     = true
+
+# ── Public vars (safe to commit) ──────────────────────────────
+[vars]
+# Your LinkedIn App Client ID (from LinkedIn Developer Portal → Auth tab)
+LINKEDIN_CLIENT_ID = "77hwnt06muw9wv"
+
+# GitHub Pages origin — no trailing slash
+# Example: "https://yourname.github.io"
+APP_ORIGIN = "https://skk9210.github.io"
+
+# Repository name (the path segment after your username on GitHub Pages)
+# Example: "linkedin-explorer"  →  app lives at https://yourname.github.io/linkedin-explorer/
+# Leave empty ("") if your repo IS the root Pages site (username.github.io repo)
+APP_PATH = "linkedin-explorer"
+
+# The full URL of this Worker's /callback route
+# Example: "https://linkedin-oauth-proxy.yoursubdomain.workers.dev/callback"
+# This MUST be registered in LinkedIn Developer Portal → Auth → OAuth 2.0 Redirect URLs
+WORKER_CALLBACK_URL = "https://linkedin-oauth-proxy.skk9210.workers.dev/callback"
+
+# ── Secrets (NEVER put here — use CLI) ───────────────────────
+# Run once:  wrangler secret put LINKEDIN_CLIENT_SECRET
+# Paste your LinkedIn Client Secret when prompted.
+# It will be encrypted and stored in Cloudflare's secret store.
