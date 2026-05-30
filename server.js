@@ -7,7 +7,6 @@
 const http = require('http');
 const fs   = require('fs');
 const path = require('path');
-const url  = require('url');
 
 const PORT     = parseInt(process.env.PORT  || '5173', 10);
 const LLM_HOST = process.env.LLM_HOST || 'localhost';
@@ -322,7 +321,7 @@ function handleApi(req, res, method, pathname, body) {
 // ── Main request handler ──────────────────────────────────────
 
 const server = http.createServer(async (req, res) => {
-  const parsed   = url.parse(req.url);
+  const parsed   = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsed.pathname;
   const method   = req.method.toUpperCase();
 
@@ -335,7 +334,7 @@ const server = http.createServer(async (req, res) => {
 
   // LLM proxy: /llm/* → strip /llm, forward to localhost:6655
   if (pathname.startsWith('/llm/')) {
-    const targetPath = pathname.slice(4) + (parsed.search || '');
+    const targetPath = pathname.slice(4) + (parsed.search ? parsed.search : '');
     const body = await readBody(req);
     proxyLlm(req, res, targetPath, body);
     return;
