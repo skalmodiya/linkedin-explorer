@@ -1015,13 +1015,21 @@ pre { white-space: pre-wrap; word-break: break-all; }
   border-radius: var(--radius-md);
   box-shadow: 0 8px 32px rgba(0,0,0,.35);
   width: 340px;
+  height: auto;
+  min-width: 260px;
   max-width: calc(100vw - 24px);
-  overflow: hidden;
+  min-height: 220px;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  resize: both;
   user-select: none;
+  display: flex;
+  flex-direction: column;
 }
 .topic-suggestions-header {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   justify-content: space-between;
   padding: .6rem .875rem .5rem;
   border-bottom: 1px solid var(--color-border);
@@ -1048,6 +1056,7 @@ pre { white-space: pre-wrap; word-break: break-all; }
 .topic-suggestions-seed {
   display: flex;
   align-items: flex-start;
+  flex-shrink: 0;
   gap: .5rem;
   padding: .6rem .875rem .5rem;
   border-bottom: 1px solid var(--color-border);
@@ -1076,8 +1085,9 @@ pre { white-space: pre-wrap; word-break: break-all; }
   list-style: none;
   margin: 0;
   padding: .25rem 0;
-  max-height: 340px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 .topic-suggestion-item { padding: 0; }
 .topic-suggestion-btn {
@@ -1110,6 +1120,7 @@ pre { white-space: pre-wrap; word-break: break-all; }
   padding: .4rem .875rem .5rem;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-raised);
+  flex-shrink: 0;
 }
 .ai-topic-textarea {
   resize: vertical;
