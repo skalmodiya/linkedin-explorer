@@ -123,31 +123,59 @@ Browser
 
 ### Prerequisites
 
-- Node.js 18+
+- [Git](https://git-scm.com/)
+- [Node.js 18+](https://nodejs.org/)
 - An LLM proxy running on `localhost:6655` (e.g. LiteLLM, Local Hai, Ollama with OpenAI-compatible API) — only needed for AI features
 
-### Run the local server
+### Clone the repository
+
+```bash
+git clone https://github.com/skalmodiya/linkedin-explorer.git
+cd linkedin-explorer
+```
+
+### Install dependencies
 
 ```bash
 npm install
-node server.js
-# App: http://localhost:5173
-# LLM proxy: /llm/* → localhost:6655/*
-# SQLite API: /api/*
 ```
 
+> This installs `sql.js` (pure-WASM SQLite — no native compilation needed). There are no other runtime dependencies.
+
+### Start the local server
+
+```bash
+node server.js
+```
+
+You should see:
+
+```
+  LinkedIn Explorer  →  http://localhost:5173
+
+  LLM proxy   /llm/* → http://localhost:6655/*
+  SQLite API  /api/*
+  Database    /path/to/linkedin_local.db
+```
+
+Open **http://localhost:5173** in your browser.
+
+> ⚠️ Do **not** open `index.html` directly — it must be served via `localhost:5173` for OAuth redirects and the LLM proxy to work.
+
 The local server handles:
-- Static file serving
-- LLM CORS proxy (`/llm/*` → `localhost:6655/*`)
-- REST API for drafts, AI history, templates, post history (`/api/*`)
+- Static file serving for the app
+- LLM CORS proxy (`/llm/*` → `localhost:6655/*`) — bridges browser requests to your local LLM proxy
+- REST API for drafts, AI history, templates, and post history (`/api/*`)
+- All data stored locally in `linkedin_local.db` in the project root
 
 ### AI Setup (in-app)
 
-1. Start the local server and open the app
-2. Click **⚙ Settings** in the Generate with AI panel
-3. Paste your API key — the Provider dropdown unlocks
-4. Select a Provider — the Model list loads live from the proxy
-5. Pick a model and click **Save & Use**
+1. Make sure your LLM proxy is running on `localhost:6655`
+2. Open the app at **http://localhost:5173** and sign in
+3. Click **⚙ Settings** in the Generate with AI panel
+4. Paste your API key — the Provider dropdown unlocks automatically
+5. Select a Provider — the Model list loads live from your proxy
+6. Pick a model and click **Save & Use**
 
 ---
 
