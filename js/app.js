@@ -173,20 +173,25 @@ function initComposer(authorSub) {
     const text = textarea?.value?.trim();
     if (!text) return;
 
-    ui.setLoading(postBtn, true, 'Posting…');
+    postBtn.disabled = true;
+    postBtn.dataset.loading = 'true';
+    postBtn.textContent = 'Posting…';
+
     try {
       const { postUrn } = await api.createTextPost(text, authorSub);
       ui.showPostResult(postUrn);
       ui.showToast('Post published successfully!', 'success');
       if (textarea) textarea.value = '';
-      // Reset char counter
       document.getElementById('char-count').textContent = '0';
       document.getElementById('char-counter')?.classList.remove('warn', 'danger');
       postBtn.disabled = true;
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
-      ui.setLoading(postBtn, false);
+      postBtn.dataset.loading = 'false';
+      postBtn.textContent = 'Post';
+      // Re-enable only if textarea has content
+      postBtn.disabled = !(textarea?.value?.trim());
     }
   });
 }

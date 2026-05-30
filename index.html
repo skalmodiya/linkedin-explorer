@@ -128,31 +128,68 @@
           <!-- Tab: Compose -->
           <div class="tab-panel active" data-panel="compose" id="panel-compose" role="tabpanel" aria-labelledby="tab-compose">
             <div class="composer-card">
+              <!-- Header: avatar + name + audience -->
               <div class="composer-header">
-                <img id="composer-avatar" class="composer-avatar" src="" alt="" width="40" height="40" />
-                <div>
+                <img id="composer-avatar" class="composer-avatar" src="" alt="" width="48" height="48" />
+                <div class="composer-header-info">
                   <p class="composer-name" id="composer-name"></p>
-                  <p class="composer-audience">
-                    <i class="ph ph-globe-hemisphere-west"></i> Anyone
-                  </p>
+                  <button class="composer-audience-btn" aria-label="Change post audience">
+                    <i class="ph ph-globe-hemisphere-west"></i>
+                    Post to Anyone
+                    <i class="ph ph-caret-down"></i>
+                  </button>
                 </div>
               </div>
+
+              <!-- Text area -->
               <textarea
                 id="post-text"
                 class="composer-textarea"
                 placeholder="What do you want to talk about?"
                 maxlength="3000"
-                rows="5"
                 aria-label="Post content"
               ></textarea>
-              <div class="composer-footer">
-                <div class="char-counter" id="char-counter">
-                  <span id="char-count">0</span> / 3000
-                </div>
-                <button class="btn btn--linkedin" id="btn-post" disabled>
-                  <i class="ph ph-paper-plane-tilt"></i>
-                  Post
+
+              <!-- Emoji row -->
+              <div class="composer-emoji-row">
+                <button class="composer-icon-btn" title="Add emoji" aria-label="Add emoji">
+                  <i class="ph ph-smiley"></i>
                 </button>
+                <span class="char-counter" id="char-counter">
+                  <span id="char-count">0</span> / 3000
+                </span>
+              </div>
+
+              <!-- Divider -->
+              <div class="composer-divider"></div>
+
+              <!-- Bottom toolbar -->
+              <div class="composer-toolbar">
+                <div class="composer-toolbar-left">
+                  <button class="composer-ai-btn" title="Rewrite with AI" aria-label="Rewrite with AI">
+                    <i class="ph ph-sparkle"></i> Rewrite with AI
+                  </button>
+                  <button class="composer-icon-btn" title="Add media" aria-label="Add photo or video">
+                    <i class="ph ph-image"></i>
+                  </button>
+                  <button class="composer-icon-btn" title="Create a carousel" aria-label="Create a carousel">
+                    <i class="ph ph-squares-four"></i>
+                  </button>
+                  <button class="composer-icon-btn" title="Tag people" aria-label="Tag people">
+                    <i class="ph ph-tag"></i>
+                  </button>
+                  <button class="composer-icon-btn" title="More options" aria-label="More options">
+                    <i class="ph ph-plus"></i>
+                  </button>
+                </div>
+                <div class="composer-toolbar-right">
+                  <button class="composer-icon-btn" title="Schedule post" aria-label="Schedule post">
+                    <i class="ph ph-clock"></i>
+                  </button>
+                  <button class="composer-post-btn" id="btn-post" disabled>
+                    Post
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -187,7 +187,6 @@ export function initCharCounter(textareaId, counterId, max = 3000) {
   textarea.addEventListener('input', update);
   update();
 }
-
 // ── Tabs ────────────────────────────────────────────────────
 
 export function initTabs() {
