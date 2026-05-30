@@ -10,7 +10,7 @@ LINKEDIN_CLIENT_ID = "77hwnt06muw9wv"
 
 # GitHub Pages origin — no trailing slash
 # Example: "https://yourname.github.io"
-APP_ORIGIN = "https://skk9210.github.io"
+APP_ORIGIN = "https://skalmodiya.github.io"
 
 # Repository name (the path segment after your username on GitHub Pages)
 # Example: "linkedin-explorer"  →  app lives at https://yourname.github.io/linkedin-explorer/
