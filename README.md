@@ -261,6 +261,9 @@ Your app will be live at `https://YOUR_USERNAME.github.io/linkedin-explorer/`
 **AI Generate button does nothing / 400 error**
 → Open AI Settings, re-enter your API key — the model list will reload from the proxy. Check the browser console or Node server terminal for the specific error from the proxy.
 
+**`ERR_CONNECTION_REFUSED` on `/llm/*` calls**
+→ The local Node server is not running. Start it with `node server.js` — the app must be opened via `http://localhost:5173`, not by opening `index.html` directly. The LLM proxy on port 6655 must also be running separately.
+
 **Drafts not saving**
 → The local Node server must be running (`node server.js`). Drafts are stored in `linkedin_local.db` in the project root.
 
