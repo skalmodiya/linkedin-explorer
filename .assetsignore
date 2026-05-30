@@ -1,0 +1,8 @@
+node_modules/
+*.db
+*.png
+*.jpeg
+*.jpg
+.git/
+.github/
+worker/

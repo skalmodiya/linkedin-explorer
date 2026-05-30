@@ -3,6 +3,11 @@ main            = "index.js"
 compatibility_date = "2026-05-30"
 workers_dev     = true
 
+# Point assets at an empty local directory so Wrangler 4 doesn't auto-scan
+# the project root (which contains node_modules with large binaries).
+[assets]
+directory = "./static"
+
 # ── Public vars (safe to commit) ──────────────────────────────
 [vars]
 # Your LinkedIn App Client ID (from LinkedIn Developer Portal → Auth tab)
