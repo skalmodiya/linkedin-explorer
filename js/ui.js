@@ -82,7 +82,17 @@ export function renderProfile(userInfo) {
   setTextContent('profile-name',    name || `${given_name || ''} ${family_name || ''}`.trim());
   setTextContent('composer-name',   name || `${given_name || ''} ${family_name || ''}`.trim());
   setTextContent('profile-email',   email || '');
-  setTextContent('profile-locale',  locale ? `Locale: ${locale}` : '');
+
+  // locale can be a string ("en_US") or object ({language:"en", country:"IN"})
+  let localeStr = '';
+  if (locale) {
+    if (typeof locale === 'object') {
+      localeStr = [locale.language, locale.country].filter(Boolean).join('-').toUpperCase();
+    } else {
+      localeStr = String(locale);
+    }
+  }
+  setTextContent('profile-locale', localeStr ? `🌐 ${localeStr}` : '');
 
   // Verified badge
   const badge = document.getElementById('badge-verified');

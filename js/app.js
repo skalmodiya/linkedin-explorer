@@ -7,6 +7,37 @@ import * as ui   from './ui.js';
 // Expose auth helpers for ui.js (avoids circular imports)
 window.__liAuth = { getExpiryDate: auth.getExpiryDate };
 
+// If this page is running inside the OAuth popup, send the token
+// to the opener and close — don't run the full app.
+(function handlePopupReturn() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
+  const params = new URLSearchParams(hash);
+  const token = params.get('token');
+  const state = params.get('state');
+  const error = params.get('error');
+
+  // Only act if we're actually in a popup with an opener
+  if (!window.opener || window.opener === window) return;
+
+  if (token && state) {
+    window.opener.postMessage({
+      type:       'LI_AUTH_SUCCESS',
+      token,
+      state,
+      expires_in: parseInt(params.get('expires_in') || '0', 10),
+    }, window.location.origin);
+  } else if (error) {
+    window.opener.postMessage({
+      type:  'LI_AUTH_ERROR',
+      error: params.get('error_description') || error,
+    }, window.location.origin);
+  }
+
+  // Close popup after posting message
+  setTimeout(() => window.close(), 300);
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
   // ── Init theme + UI ──────────────────────────────────────
   ui.initTheme();

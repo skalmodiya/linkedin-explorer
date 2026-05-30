@@ -156,9 +156,16 @@ function clearSession() {
 function handlePopupMessage(event) {
   // Only accept messages from our own origin
   if (event.origin !== window.location.origin) return;
-  if (!event.data || event.data.type !== 'LI_AUTH_SUCCESS') return;
+  if (!event.data || !event.data.type) return;
+  if (!['LI_AUTH_SUCCESS', 'LI_AUTH_ERROR'].includes(event.data.type)) return;
 
   window.removeEventListener('message', handlePopupMessage);
+
+  if (event.data.type === 'LI_AUTH_ERROR') {
+    clearSession();
+    window.dispatchEvent(new CustomEvent('li:auth-error', { detail: { message: event.data.error || 'Authentication failed.' } }));
+    return;
+  }
 
   const { token, state, expires_in } = event.data;
   if (!token || !state) return;
