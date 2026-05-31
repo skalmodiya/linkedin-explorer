@@ -207,35 +207,27 @@
                     <i class="ph ph-file-text"></i>
                     <span class="composer-btn-label">Drafts</span>
                   </button>
-                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-carousel" title="Create a carousel" aria-label="Create a carousel">
-                    <i class="ph ph-squares-four"></i>
-                    <span class="composer-btn-label">Carousel</span>
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-word-count" title="Word &amp; character count" aria-label="Word count">
+                    <i class="ph ph-text-aa"></i>
+                    <span class="composer-btn-label">Count</span>
                   </button>
-                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-tag-people" title="Tag people" aria-label="Tag people">
-                    <i class="ph ph-tag"></i>
-                    <span class="composer-btn-label">Tag</span>
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-copy-text" title="Copy post text" aria-label="Copy post text">
+                    <i class="ph ph-copy"></i>
+                    <span class="composer-btn-label">Copy</span>
+                  </button>
+                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-paste-plain" title="Paste as plain text" aria-label="Paste as plain text">
+                    <i class="ph ph-clipboard-text"></i>
+                    <span class="composer-btn-label">Paste</span>
                   </button>
                   <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-clear-editor" title="Clear editor" aria-label="Clear editor">
                     <i class="ph ph-eraser"></i>
                     <span class="composer-btn-label">Clear</span>
-                  </button>
-                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-more-options" title="More options" aria-label="More options">
-                    <i class="ph ph-plus"></i>
-                    <span class="composer-btn-label">More</span>
                   </button>
                 </div>
                 <div class="composer-toolbar-right">
                   <span class="char-counter" id="char-counter">
                     <span id="char-count">0</span> / 3000
                   </span>
-                  <button class="composer-icon-btn composer-icon-btn--labeled" id="btn-schedule" title="Schedule post" aria-label="Schedule post">
-                    <i class="ph ph-clock"></i>
-                    <span class="composer-btn-label">Schedule</span>
-                  </button>
-                  <button class="schedule-indicator" id="schedule-indicator" hidden>
-                    <i class="ph ph-alarm"></i>
-                    <span id="schedule-indicator-text"></span>
-                  </button>
                   <button class="composer-post-btn" id="btn-post" disabled>
                     Post
                   </button>
@@ -636,71 +628,6 @@
       <input class="input-styled emoji-search-input" id="emoji-search" type="text" placeholder="Search emoji…" autocomplete="off" />
     </div>
     <div class="emoji-grid" id="emoji-grid"></div>
-  </div>
-
-  <!-- ═══════════════ TAG PEOPLE POPOVER ═══════════════ -->
-  <div class="composer-popover" id="tag-people-popover" hidden role="dialog" aria-label="Tag a person">
-    <p class="popover-label">Type a name to insert an @mention</p>
-    <div class="popover-row">
-      <input class="input-styled" id="tag-name-input" type="text" placeholder="e.g. Jane Smith" maxlength="100" autocomplete="off" />
-      <button class="btn btn--linkedin btn--sm" id="btn-tag-insert">Insert</button>
-    </div>
-    <p class="popover-hint">Note: LinkedIn's API doesn't support mention linking — this inserts plain @Name text.</p>
-  </div>
-
-  <!-- ═══════════════ MORE OPTIONS POPOVER ═══════════════ -->
-  <div class="composer-popover composer-popover--menu" id="more-options-popover" hidden role="menu">
-    <button class="popover-menu-item" id="opt-word-count" role="menuitem">
-      <i class="ph ph-text-aa"></i> Word &amp; character count
-    </button>
-    <button class="popover-menu-item" id="opt-copy-text" role="menuitem">
-      <i class="ph ph-copy"></i> Copy post text
-    </button>
-    <hr class="popover-divider" />
-    <button class="popover-menu-item" id="opt-paste-plain" role="menuitem">
-      <i class="ph ph-clipboard-text"></i> Paste as plain text
-    </button>
-  </div>
-
-  <!-- ═══════════════ SCHEDULE POST MODAL ═══════════════ -->
-  <div class="modal-overlay" id="modal-schedule" hidden aria-modal="true" role="dialog" aria-labelledby="modal-schedule-title">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h2 class="modal-title" id="modal-schedule-title">
-          <i class="ph ph-clock"></i> Schedule Post
-        </h2>
-        <button class="btn-icon modal-close" id="btn-schedule-close" aria-label="Close">
-          <i class="ph ph-x"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="schedule-notice">
-          <i class="ph ph-info"></i>
-          LinkedIn's scheduling API requires Partner Program access. This sets a reminder — you'll need to post manually at the chosen time.
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="schedule-date">Date</label>
-          <input class="input-styled" id="schedule-date" type="date" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="schedule-time">Time</label>
-          <input class="input-styled" id="schedule-time" type="time" />
-        </div>
-        <div class="schedule-preview" id="schedule-preview" hidden>
-          <i class="ph ph-alarm"></i>
-          <span id="schedule-preview-text"></span>
-          <button class="btn btn--ghost btn--xs" id="btn-schedule-clear">
-            <i class="ph ph-x"></i> Clear
-          </button>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn--ghost" id="btn-schedule-cancel">Cancel</button>
-        <button class="btn btn--linkedin" id="btn-schedule-save">
-          <i class="ph ph-alarm"></i> Set reminder
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- ═══════════════ TOPIC SUGGESTIONS POPUP ═══════════════ -->

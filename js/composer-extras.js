@@ -1,7 +1,6 @@
-// composer-extras.js — Emoji picker, Tag people, More options, Schedule post, Carousel notice
+// composer-extras.js — Emoji picker, direct toolbar buttons
 
 // ── Emoji data ────────────────────────────────────────────────
-// Curated set grouped loosely by category
 const EMOJIS = [
   // Smileys & people
   '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','😎',
@@ -29,15 +28,12 @@ const EMOJIS = [
 let _openPopover = null;
 
 function positionPopover(popover, anchorBtn) {
-  const rect  = anchorBtn.getBoundingClientRect();
-  const vw    = window.innerWidth;
-  const vh    = window.innerHeight;
+  const rect = anchorBtn.getBoundingClientRect();
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight;
+  let top    = rect.bottom + 6;
+  let left   = rect.left;
 
-  // Start below the button
-  let top  = rect.bottom + 6;
-  let left = rect.left;
-
-  // Temporarily show off-screen to measure
   popover.style.visibility = 'hidden';
   popover.hidden = false;
   const pw = popover.offsetWidth;
@@ -45,10 +41,8 @@ function positionPopover(popover, anchorBtn) {
   popover.hidden = true;
   popover.style.visibility = '';
 
-  // Flip left if overflows right
   if (left + pw > vw - 8) left = Math.max(8, vw - pw - 8);
-  // Flip above if overflows bottom
-  if (top + ph > vh - 8) top = rect.top - ph - 6;
+  if (top + ph > vh - 8)  top  = rect.top - ph - 6;
 
   popover.style.left = `${left}px`;
   popover.style.top  = `${top}px`;
@@ -66,12 +60,8 @@ function closeAllPopovers() {
   _openPopover = null;
 }
 
-// Close on outside click
 document.addEventListener('mousedown', (e) => {
-  if (_openPopover && !_openPopover.contains(e.target)) {
-    // Don't close if clicking the trigger button itself (let toggle handle it)
-    closeAllPopovers();
-  }
+  if (_openPopover && !_openPopover.contains(e.target)) closeAllPopovers();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && _openPopover) closeAllPopovers();
@@ -80,16 +70,14 @@ document.addEventListener('keydown', (e) => {
 // ── Emoji Picker ──────────────────────────────────────────────
 
 export function initEmojiPicker(getEditor) {
-  const btn     = document.getElementById('btn-emoji');
-  const picker  = document.getElementById('emoji-picker');
-  const grid    = document.getElementById('emoji-grid');
-  const search  = document.getElementById('emoji-search');
+  const btn    = document.getElementById('btn-emoji');
+  const picker = document.getElementById('emoji-picker');
+  const grid   = document.getElementById('emoji-grid');
+  const search = document.getElementById('emoji-search');
   if (!btn || !picker || !grid) return;
 
   function renderEmojis(filter = '') {
-    const list = filter
-      ? EMOJIS.filter(e => e.includes(filter))
-      : EMOJIS;
+    const list = filter ? EMOJIS.filter(e => e.includes(filter)) : EMOJIS;
     grid.innerHTML = list.map(e =>
       `<button class="emoji-btn" type="button" data-emoji="${e}">${e}</button>`
     ).join('');
@@ -111,69 +99,21 @@ export function initEmojiPicker(getEditor) {
   grid.addEventListener('click', (e) => {
     const emojiBtn = e.target.closest('.emoji-btn');
     if (!emojiBtn) return;
-    const emoji = emojiBtn.dataset.emoji;
     const editor = getEditor();
     if (editor) {
       editor.focus();
-      document.execCommand('insertText', false, emoji);
+      document.execCommand('insertText', false, emojiBtn.dataset.emoji);
       editor.dispatchEvent(new Event('input'));
     }
     closeAllPopovers();
   });
 }
 
-// ── Tag People ────────────────────────────────────────────────
-
-export function initTagPeople(getEditor) {
-  const btn     = document.getElementById('btn-tag-people');
-  const popover = document.getElementById('tag-people-popover');
-  const input   = document.getElementById('tag-name-input');
-  const insert  = document.getElementById('btn-tag-insert');
-  if (!btn || !popover) return;
-
-  function doInsert() {
-    const name = input?.value?.trim();
-    if (!name) return;
-    const editor = getEditor();
-    if (editor) {
-      editor.focus();
-      document.execCommand('insertText', false, `@${name} `);
-      editor.dispatchEvent(new Event('input'));
-    }
-    if (input) input.value = '';
-    closeAllPopovers();
-  }
-
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!popover.hidden) { closeAllPopovers(); return; }
-    openPopover(popover, btn);
-    input?.focus();
-  });
-
-  insert?.addEventListener('click', doInsert);
-  input?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); doInsert(); }
-    if (e.key === 'Escape') closeAllPopovers();
-  });
-}
-
-// ── More Options ──────────────────────────────────────────────
+// ── Direct toolbar buttons ────────────────────────────────────
 
 export function initMoreOptions(getEditor) {
-  const btn     = document.getElementById('btn-more-options');
-  const popover = document.getElementById('more-options-popover');
-  if (!btn || !popover) return;
-
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (!popover.hidden) { closeAllPopovers(); return; }
-    openPopover(popover, btn);
-  });
-
   // Word & character count
-  document.getElementById('opt-word-count')?.addEventListener('click', () => {
-    closeAllPopovers();
+  document.getElementById('btn-word-count')?.addEventListener('click', () => {
     const editor = getEditor();
     const text   = editor ? getEditorPlainText(editor) : '';
     const chars  = text.length;
@@ -185,8 +125,7 @@ export function initMoreOptions(getEditor) {
   });
 
   // Copy post text
-  document.getElementById('opt-copy-text')?.addEventListener('click', () => {
-    closeAllPopovers();
+  document.getElementById('btn-copy-text')?.addEventListener('click', () => {
     const editor = getEditor();
     const text   = editor ? getEditorPlainText(editor) : '';
     if (!text) {
@@ -198,20 +137,8 @@ export function initMoreOptions(getEditor) {
     });
   });
 
-  // Clear editor — dedicated toolbar button
-  document.getElementById('btn-clear-editor')?.addEventListener('click', () => {
-    const editor = getEditor();
-    if (!editor) return;
-    if (editor.innerHTML === '' || editor.innerText.trim() === '') return;
-    if (!confirm('Clear the editor? This cannot be undone.')) return;
-    editor.innerHTML = '';
-    editor.dispatchEvent(new Event('input'));
-    editor.focus();
-  });
-
   // Paste as plain text
-  document.getElementById('opt-paste-plain')?.addEventListener('click', async () => {
-    closeAllPopovers();
+  document.getElementById('btn-paste-plain')?.addEventListener('click', async () => {
     const editor = getEditor();
     if (!editor) return;
     try {
@@ -223,127 +150,26 @@ export function initMoreOptions(getEditor) {
       import('./ui.js').then(ui => ui.showToast('Could not read clipboard. Use Ctrl+V to paste.', 'warning', 4000));
     }
   });
-}
 
-// ── Carousel notice ───────────────────────────────────────────
-
-export function initCarousel() {
-  document.getElementById('btn-carousel')?.addEventListener('click', () => {
-    import('./ui.js').then(ui => {
-      ui.showToast(
-        'Carousel posts require PDF upload via LinkedIn’s Partner API (not available on free access). Use image attachments instead.',
-        'info',
-        6000
-      );
-    });
+  // Clear editor
+  document.getElementById('btn-clear-editor')?.addEventListener('click', () => {
+    const editor = getEditor();
+    if (!editor) return;
+    if (editor.innerHTML === '' || editor.innerText.trim() === '') return;
+    if (!confirm('Clear the editor? This cannot be undone.')) return;
+    editor.innerHTML = '';
+    editor.dispatchEvent(new Event('input'));
+    editor.focus();
   });
 }
 
-// ── Schedule Post ─────────────────────────────────────────────
+// ── Stubs so app.js imports stay intact ──────────────────────
 
-let _scheduledAt = null;
+export function initTagPeople() {}
+export function initCarousel() {}
+export function initSchedulePost() {}
 
-export function initSchedulePost() {
-  const btnOpen     = document.getElementById('btn-schedule');
-  const modal       = document.getElementById('modal-schedule');
-  const dateInput   = document.getElementById('schedule-date');
-  const timeInput   = document.getElementById('schedule-time');
-  const preview     = document.getElementById('schedule-preview');
-  const previewText = document.getElementById('schedule-preview-text');
-  const indicator   = document.getElementById('schedule-indicator');
-  const indicatorTxt= document.getElementById('schedule-indicator-text');
-  const btnSave     = document.getElementById('btn-schedule-save');
-  const btnCancel   = document.getElementById('btn-schedule-cancel');
-  const btnClose    = document.getElementById('btn-schedule-close');
-  const btnClear    = document.getElementById('btn-schedule-clear');
-
-  if (!modal) return;
-
-  function formatDateTime(date) {
-    return date.toLocaleString(undefined, {
-      weekday: 'short', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  }
-
-  function updatePreview() {
-    const d = dateInput?.value;
-    const t = timeInput?.value || '09:00';
-    if (!d) { if (preview) preview.hidden = true; return; }
-    const dt = new Date(`${d}T${t}`);
-    if (isNaN(dt.getTime())) return;
-    if (previewText) previewText.textContent = `Reminder set for ${formatDateTime(dt)}`;
-    if (preview) preview.hidden = false;
-  }
-
-  dateInput?.addEventListener('input', updatePreview);
-  timeInput?.addEventListener('input', updatePreview);
-
-  // Set default date/time to tomorrow 9am
-  function prefillDefaults() {
-    if (_scheduledAt) {
-      const d = _scheduledAt;
-      if (dateInput) dateInput.value = d.toISOString().slice(0, 10);
-      if (timeInput) timeInput.value = d.toTimeString().slice(0, 5);
-    } else {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(9, 0, 0, 0);
-      if (dateInput) dateInput.value = tomorrow.toISOString().slice(0, 10);
-      if (timeInput) timeInput.value = '09:00';
-    }
-    updatePreview();
-  }
-
-  btnOpen?.addEventListener('click', () => {
-    prefillDefaults();
-    import('./ui.js').then(ui => ui.openModal('modal-schedule'));
-  });
-
-  // Also clicking indicator reopens modal
-  indicator?.addEventListener('click', () => {
-    prefillDefaults();
-    import('./ui.js').then(ui => ui.openModal('modal-schedule'));
-  });
-
-  function closeModal() {
-    import('./ui.js').then(ui => ui.closeModal('modal-schedule'));
-  }
-
-  btnClose?.addEventListener('click', closeModal);
-  btnCancel?.addEventListener('click', closeModal);
-  modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
-  btnSave?.addEventListener('click', () => {
-    const d = dateInput?.value;
-    const t = timeInput?.value || '09:00';
-    if (!d) {
-      import('./ui.js').then(ui => ui.showToast('Please pick a date.', 'warning'));
-      return;
-    }
-    const dt = new Date(`${d}T${t}`);
-    if (isNaN(dt.getTime()) || dt <= new Date()) {
-      import('./ui.js').then(ui => ui.showToast('Please choose a future date and time.', 'warning'));
-      return;
-    }
-    _scheduledAt = dt;
-    if (indicator) indicator.hidden = false;
-    if (indicatorTxt) indicatorTxt.textContent = formatDateTime(dt);
-    closeModal();
-    import('./ui.js').then(ui => {
-      ui.showToast(`Reminder set for ${formatDateTime(dt)}`, 'success', 4000);
-    });
-  });
-
-  btnClear?.addEventListener('click', () => {
-    _scheduledAt = null;
-    if (indicator) indicator.hidden = true;
-    if (preview) preview.hidden = true;
-    closeModal();
-  });
-}
-
-// ── Helper: plain text from contenteditable (mirrors app.js) ─
+// ── Helper: plain text from contenteditable ───────────────────
 
 function getEditorPlainText(el) {
   const BLOCK_TAGS = new Set(['P','DIV','H1','H2','H3','H4','H5','H6','LI','BLOCKQUOTE','PRE','TR']);
