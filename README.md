@@ -10,13 +10,22 @@ A browser-based tool to log in with your LinkedIn account, compose and publish p
 
 ### Composer
 - **Rich text editor** — Bold, Italic, Underline, Bullet lists, Headings, inline Links via `contenteditable` + `execCommand`
-- **Bottom toolbar** with labelled icons — Emoji picker, Drafts, Carousel info, Tag people, More options, Schedule reminder
-- **Emoji picker** — searchable grid of 150+ emojis, inserted at cursor position
-- **Tag people** — inserts `@Name` plain-text mention
-- **More options** — word/char count, copy text, clear editor, paste as plain text
-- **Schedule reminder** — set a date/time reminder (note: LinkedIn scheduling requires Partner API access)
+- **Bottom toolbar** with labeled icons — all actions directly accessible, no hidden menus:
+  - **Emoji** — searchable grid of 150+ emojis, inserted at cursor position
+  - **Drafts** — open the drafts drawer
+  - **Count** — word, character and line count toast
+  - **Copy** — copy post text to clipboard
+  - **Paste** — paste clipboard content as plain text
+  - **Clear** — clear the editor (with confirmation)
 - **Character counter** — live 0 / 3000 with warn/danger states
 - **Autosave drafts** — editor content auto-saved every 3 seconds to local SQLite via Node server
+
+### Drafts
+- Saved automatically while typing (3 s debounce)
+- Save manually at any time
+- Click any draft to load it into the composer and switch to the Compose tab
+- **Delete individual drafts** or **delete all at once** (with confirmation)
+- Drawer slides in from the side
 
 ### AI Post Generation (optional — requires local LLM proxy)
 - **Multi-provider** — Anthropic Claude, OpenAI GPT, Google Gemini, LiteLLM
@@ -25,14 +34,16 @@ A browser-based tool to log in with your LinkedIn account, compose and publish p
 - **Active config badge** — selected provider and model shown in the panel header
 - **15 categories** — Thought Leadership, Job/Career Update, Hot Take/Opinion, Case Study, Hiring, Gratitude, and more
 - **12 tones** — Professional, Storytelling, Bold & Direct, Data-driven, Motivational, and more
-- **Topic suggestions popup** — click ✨ Suggest to get 5 AI-generated topic ideas based on Category + Tone; optionally seed with your own free-text idea; draggable popup
+- **Reset button** — clears Category, Tone and Topic back to defaults in one click
+- **Topic suggestions popup** — click ✨ Suggest to get 5 AI-generated topic ideas based on Category + Tone; optionally seed with your own free-text idea; draggable and resizable
 - **Regenerate with feedback** — provide notes and regenerate without losing the original
 
-### Drafts
-- Saved automatically while typing (3 s debounce)
-- Save manually at any time
-- **Delete individual drafts** or **delete all at once** (with confirmation)
-- Drawer slides in from the side; loads draft back into editor on click
+### Post History
+- Every post published from the app is stored locally and shown in the **History** tab
+- **Expand/collapse** long posts (preview truncated at 200 characters)
+- **Edit & repost** — loads the post back into the composer and switches to the Compose tab
+- **Copy** — copies the post text to clipboard
+- **View on LinkedIn** — opens the post directly on LinkedIn
 
 ### API Explorer
 - `GET /v2/userinfo` — name, email, picture, locale, sub (OpenID Connect)
@@ -41,7 +52,6 @@ A browser-based tool to log in with your LinkedIn account, compose and publish p
 
 ### General
 - **Dark / Light theme** — toggle anytime, preference saved locally
-- **Post history** — published posts stored locally with URN and timestamp
 - **Prompt templates** — save and reuse Category + Tone + Topic combinations
 - **AI generation history** — browse past generations, reload any into editor
 - **Fully responsive** — adapts from wide desktop to narrow mobile
@@ -108,7 +118,7 @@ Browser
 │   ├── llm.js                   # LLM provider abstraction (Anthropic/OpenAI/Gemini/LiteLLM)
 │   ├── db.js                    # REST client for local SQLite server
 │   ├── drafts.js                # Drafts drawer: autosave, load, delete
-│   ├── composer-extras.js       # Emoji picker, Tag People, More Options, Schedule, Carousel
+│   ├── composer-extras.js       # Emoji picker, toolbar button handlers
 │   └── ui.js                    # Toast, theme, modal helpers
 ├── worker/
 │   ├── index.js                 # Cloudflare Worker — OAuth + LinkedIn API + OIDC proxy
@@ -292,8 +302,11 @@ Your app will be live at `https://YOUR_USERNAME.github.io/linkedin-explorer/`
 **`ERR_CONNECTION_REFUSED` on `/llm/*` calls**
 → The local Node server is not running. Start it with `node server.js` — the app must be opened via `http://localhost:5173`, not by opening `index.html` directly. The LLM proxy on port 6655 must also be running separately.
 
-**Drafts not saving**
+**Drafts not saving / not loading**
 → The local Node server must be running (`node server.js`). Drafts are stored in `linkedin_local.db` in the project root.
+
+**Post history empty**
+→ History is stored locally — only posts published through this app appear here. LinkedIn's API does not allow fetching your existing posts without Partner Program access.
 
 ---
 
