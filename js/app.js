@@ -5,7 +5,7 @@ import * as api    from './api.js';
 import * as ui     from './ui.js';
 import * as llm    from './llm.js';
 import * as db     from './db.js';
-import { initDrafts, clearActiveDraft, getActiveDraftId } from './drafts.js';
+import { initDrafts, clearActiveDraft, getActiveDraftId, saveNow as saveDraftNow } from './drafts.js';
 import { initEmojiPicker, initTagPeople, initMoreOptions, initCarousel, initSchedulePost } from './composer-extras.js';
 
 // Expose auth helpers for ui.js (avoids circular imports)
@@ -893,7 +893,7 @@ function initAiPanel() {
   });
 }
 
-function applyGeneratedContent(content) {
+async function applyGeneratedContent(content) {
   const editor = document.getElementById('post-text');
   if (!editor) return;
   editor.innerHTML = escHtml(content).replace(/\n/g, '<br>');
@@ -901,8 +901,10 @@ function applyGeneratedContent(content) {
   editor.focus();
   ui.hidePostResult();
 
-  // Autosave will fire in 3 s — switch to Drafts tab now so it's visible
-  renderMyPostsFeed().then(() => switchToDraftsTab());
+  // Force-save draft immediately so Drafts tab shows it right away
+  await saveDraftNow();
+  await renderMyPostsFeed();
+  switchToDraftsTab();
 }
 
 // ── Inline My Posts Feed + Drafts tabs (below composer) ──────
