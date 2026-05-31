@@ -1028,27 +1028,61 @@ async function renderMyDraftsFeed() {
 
   if (!drafts.length) {
     listEl.innerHTML = `<p class="feed-empty">No drafts yet.</p>`;
+    // Update tab badge
+    const draftsTab = document.getElementById('feed-tab-drafts');
+    if (draftsTab) draftsTab.innerHTML = `<i class="ph ph-file-text"></i> Drafts`;
     return;
   }
 
-  listEl.innerHTML = buildFeedCards(drafts, {
+  // Delete All button header
+  const deleteAllHtml = `
+    <div class="feed-drafts-toolbar">
+      <span class="feed-drafts-count">${drafts.length} draft${drafts.length !== 1 ? 's' : ''}</span>
+      <button class="btn btn--ghost btn--xs btn--danger-ghost" id="feed-btn-delete-all-drafts">
+        <i class="ph ph-trash"></i> Delete all
+      </button>
+    </div>`;
+
+  listEl.innerHTML = deleteAllHtml + buildFeedCards(drafts, {
     dateField:    'updated_at',
-    contentField: 'title',   // list endpoint has title, not full content
+    contentField: 'title',
     labelPosted:  true,
-    getActions:   (d, _full, _viewUrl) => `
-      <button class="btn btn--ghost btn--xs feed-card-load feed-draft-load" data-draft-id="${d.id}" title="Load into editor">
+    getActions:   (d) => `
+      <button class="btn btn--ghost btn--xs feed-draft-load" data-draft-id="${d.id}" title="Load into editor">
         <i class="ph ph-pencil-simple"></i> Edit
       </button>
-      ${d.posted_at ? `<span class="feed-posted-label"><i class="ph ph-check-circle"></i> Already posted</span>` : ''}`,
+      ${d.posted_at ? `<span class="feed-posted-label"><i class="ph ph-check-circle"></i> Already posted</span>` : ''}
+      <button class="btn btn--ghost btn--xs btn--danger-ghost feed-draft-delete" data-draft-id="${d.id}" title="Delete draft" style="margin-left:auto">
+        <i class="ph ph-trash"></i>
+      </button>`,
   });
 
   wireExpandCollapse(listEl);
 
+  // Delete individual draft
+  listEl.querySelectorAll('.feed-draft-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = parseInt(btn.dataset.draftId, 10);
+      await db.deleteDraft(id);
+      await renderMyDraftsFeed();
+      await renderMyPostsFeed(); // refresh tab badge count
+    });
+  });
+
+  // Delete all drafts
+  document.getElementById('feed-btn-delete-all-drafts')?.addEventListener('click', async () => {
+    const count = drafts.length;
+    if (!confirm(`Delete all ${count} draft${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    await db.deleteAllDrafts();
+    await renderMyDraftsFeed();
+    await renderMyPostsFeed();
+  });
+
   // Load draft into editor on Edit click (fetches full content)
   listEl.querySelectorAll('.feed-draft-load').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const id     = parseInt(btn.dataset.draftId, 10);
-      const draft  = await db.getDraft(id);
+      const id    = parseInt(btn.dataset.draftId, 10);
+      const draft = await db.getDraft(id);
       if (!draft) return;
       const editor = document.getElementById('post-text');
       if (editor) {
@@ -1057,12 +1091,11 @@ async function renderMyDraftsFeed() {
         editor.focus();
         editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      // Set category/tone/topic
-      const catEl = document.getElementById('ai-category');
-      const toneEl = document.getElementById('ai-tone');
+      const catEl   = document.getElementById('ai-category');
+      const toneEl  = document.getElementById('ai-tone');
       const topicEl = document.getElementById('ai-topic');
-      if (catEl && draft.category) catEl.value = draft.category;
-      if (toneEl && draft.tone)   toneEl.value = draft.tone;
+      if (catEl && draft.category)  catEl.value  = draft.category;
+      if (toneEl && draft.tone)     toneEl.value  = draft.tone;
       if (topicEl && draft.topic) { topicEl.value = draft.topic; topicEl.dispatchEvent(new Event('input')); }
       ui.showToast('Draft loaded into editor', 'success', 2000);
     });

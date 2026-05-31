@@ -1720,6 +1720,16 @@ select:disabled { opacity: .5; cursor: not-allowed; }
   gap: .25rem;
   margin-left: auto;
 }
+.feed-drafts-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .5rem;
+}
+.feed-drafts-count {
+  font-size: .8rem;
+  color: var(--color-text-muted);
+}
 .feed-empty {
   font-size: .875rem;
   color: var(--color-text-muted);
