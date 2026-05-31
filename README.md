@@ -12,20 +12,20 @@ A browser-based tool to log in with your LinkedIn account, compose and publish p
 - **Rich text editor** — Bold, Italic, Underline, Bullet lists, Headings, inline Links via `contenteditable` + `execCommand`
 - **Bottom toolbar** with labeled icons — all actions directly accessible, no hidden menus:
   - **Emoji** — searchable grid of 150+ emojis, inserted at cursor position
-  - **Drafts** — open the drafts drawer
   - **Count** — word, character and line count toast
   - **Copy** — copy post text to clipboard
   - **Paste** — paste clipboard content as plain text
   - **Clear** — clear the editor (with confirmation)
 - **Character counter** — live 0 / 3000 with warn/danger states
-- **Autosave drafts** — editor content auto-saved every 3 seconds to local SQLite via Node server
+- **Autosave drafts** — editor content auto-saved every 3 seconds to local SQLite via Node server; force-saved instantly on Generate to avoid duplicates
 
 ### Drafts
-- Saved automatically while typing (3 s debounce)
-- Save manually at any time
-- Click any draft to load it into the composer and switch to the Compose tab
-- **Delete individual drafts** or **delete all at once** (with confirmation)
-- Drawer slides in from the side
+- Saved automatically while typing (3 s debounce); also force-saved immediately when AI generates content
+- Visible in the **Drafts tab** directly below the composer — no drawer needed
+- Click **Edit** on any draft card to load it back into the editor (restores category, tone and topic too)
+- **Delete individual drafts** or **Delete all** with confirmation
+- Drafts that have been posted show a green **Posted** badge
+- Auto-switches to Drafts tab when AI generates content; switches to My Posts tab after a successful post
 
 ### AI Post Generation (optional — requires local LLM proxy)
 - **Multi-provider** — Anthropic Claude, OpenAI GPT, Google Gemini, LiteLLM
@@ -123,7 +123,7 @@ Browser
 │   ├── api.js                   # LinkedIn API calls via Worker proxy
 │   ├── llm.js                   # LLM provider abstraction (Anthropic/OpenAI/Gemini/LiteLLM)
 │   ├── db.js                    # REST client for local SQLite server
-│   ├── drafts.js                # Drafts drawer: autosave, load, delete
+│   ├── drafts.js                # Autosave drafts to local SQLite server
 │   ├── composer-extras.js       # Emoji picker, toolbar button handlers
 │   └── ui.js                    # Toast, theme, modal helpers
 ├── worker/
