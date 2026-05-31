@@ -36,7 +36,8 @@ async function initDb() {
         category   TEXT,
         tone       TEXT,
         created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
+        updated_at TEXT DEFAULT (datetime('now')),
+        posted_at  TEXT DEFAULT NULL
       );
       CREATE TABLE IF NOT EXISTS ai_history (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,6 +68,8 @@ async function initDb() {
         posted_at  TEXT DEFAULT (datetime('now'))
       );
     `);
+    // Migrate existing DBs that pre-date posted_at column
+    try { db.run('ALTER TABLE drafts ADD COLUMN posted_at TEXT DEFAULT NULL'); } catch (_) {}
     persist();
     console.log(`SQLite ready: ${DB_FILE}`);
   } catch (e) {
@@ -109,7 +112,7 @@ function dbRun(sql, params = []) {
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key, anthropic-version, anthropic-beta',
 };
 
@@ -275,7 +278,7 @@ function handleApi(req, res, method, pathname, body) {
 
   // ── Drafts ──────────────────────────────────────
   if (pathname === '/api/drafts' && method === 'GET') {
-    jsonResp(res, 200, dbAll('SELECT id, title, topic, category, tone, created_at, updated_at FROM drafts ORDER BY updated_at DESC'));
+    jsonResp(res, 200, dbAll('SELECT id, title, topic, category, tone, created_at, updated_at, posted_at FROM drafts ORDER BY updated_at DESC'));
     return;
   }
   if (pathname === '/api/drafts' && method === 'POST') {
@@ -312,6 +315,13 @@ function handleApi(req, res, method, pathname, body) {
       jsonResp(res, 200, { deleted: id });
       return;
     }
+  }
+  const draftPostedM = pathname.match(/^\/api\/drafts\/(\d+)\/posted$/);
+  if (draftPostedM && method === 'PATCH') {
+    const id = parseInt(draftPostedM[1], 10);
+    dbRun("UPDATE drafts SET posted_at=datetime('now') WHERE id=?", [id]);
+    jsonResp(res, 200, { id, posted: true });
+    return;
   }
 
   // ── AI History ──────────────────────────────────

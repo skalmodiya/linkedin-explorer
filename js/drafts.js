@@ -67,6 +67,10 @@ export function clearActiveDraft() {
   _activeDraftId = null;
 }
 
+export function getActiveDraftId() {
+  return _activeDraftId;
+}
+
 // ── Drawer open/close ─────────────────────────────────────────
 
 function openDrawer() {
@@ -111,7 +115,10 @@ async function renderDraftsList() {
   container.innerHTML = drafts.map(d => `
     <div class="draft-card ${d.id === _activeDraftId ? 'draft-card--active' : ''}" data-id="${d.id}">
       <div class="draft-card-body">
-        <span class="draft-title">${escHtml(d.title || '(untitled)')}</span>
+        <div class="draft-card-title-row">
+          <span class="draft-title">${escHtml(d.title || '(untitled)')}</span>
+          ${d.posted_at ? `<span class="draft-posted-badge"><i class="ph ph-check-circle"></i> Posted</span>` : ''}
+        </div>
         <span class="draft-meta">${relativeTime(d.updated_at)}</span>
       </div>
       <button class="btn-icon draft-delete" data-id="${d.id}" title="Delete draft" aria-label="Delete draft">

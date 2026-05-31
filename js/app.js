@@ -5,7 +5,7 @@ import * as api    from './api.js';
 import * as ui     from './ui.js';
 import * as llm    from './llm.js';
 import * as db     from './db.js';
-import { initDrafts, clearActiveDraft } from './drafts.js';
+import { initDrafts, clearActiveDraft, getActiveDraftId } from './drafts.js';
 import { initEmojiPicker, initTagPeople, initMoreOptions, initCarousel, initSchedulePost } from './composer-extras.js';
 
 // Expose auth helpers for ui.js (avoids circular imports)
@@ -268,6 +268,10 @@ function initComposer(authorSub) {
         category: _lastGenCategory,
         tone:     _lastGenTone,
       });
+
+      // Mark the source draft as posted (if one was active)
+      const draftId = getActiveDraftId();
+      if (draftId) db.markDraftPosted(draftId);
 
       // Clear editor
       editor.innerHTML = '';
@@ -897,65 +901,71 @@ function applyGeneratedContent(content) {
   ui.hidePostResult();
 }
 
-// ── Inline My Posts Feed (below composer) ─────────────────────
+// ── Inline My Posts Feed + Drafts tabs (below composer) ──────
 
-async function renderMyPostsFeed() {
-  const feed     = document.getElementById('my-posts-feed');
-  const listEl   = document.getElementById('my-posts-feed-list');
-  if (!feed || !listEl) return;
+let _feedTabsWired = false;
 
-  const posts = await db.getPostHistory();
+function wireFeedTabs() {
+  if (_feedTabsWired) return;
+  _feedTabsWired = true;
+  document.getElementById('feed-tab-posts')?.addEventListener('click', () => {
+    document.getElementById('feed-tab-posts')?.classList.add('feed-tab--active');
+    document.getElementById('feed-tab-drafts')?.classList.remove('feed-tab--active');
+    document.getElementById('my-posts-feed-list').hidden  = false;
+    document.getElementById('my-drafts-feed-list').hidden = true;
+  });
+  document.getElementById('feed-tab-drafts')?.addEventListener('click', () => {
+    document.getElementById('feed-tab-drafts')?.classList.add('feed-tab--active');
+    document.getElementById('feed-tab-posts')?.classList.remove('feed-tab--active');
+    document.getElementById('my-posts-feed-list').hidden  = true;
+    document.getElementById('my-drafts-feed-list').hidden = false;
+    renderMyDraftsFeed();
+  });
+}
 
-  if (!posts.length) {
-    feed.hidden = true;
-    return;
-  }
-
-  feed.hidden = false;
-  listEl.innerHTML = posts.map(p => {
-    const full     = p.content || '';
-    const date     = p.posted_at ? new Date(p.posted_at + 'Z').toLocaleString() : '—';
-    const viewUrl  = p.post_urn ? `https://www.linkedin.com/feed/update/${encodeURIComponent(p.post_urn)}/` : null;
-    const hasMore  = full.length > 200;
-    const preview  = full.slice(0, 200) + (hasMore ? '…' : '');
+function buildFeedCards(items, { dateField, contentField, getViewUrl, getActions, labelPosted }) {
+  return items.map(item => {
+    const full    = item[contentField] || '';
+    const rawDate = item[dateField];
+    const date    = rawDate ? new Date(rawDate + 'Z').toLocaleString() : '—';
+    const hasMore = full.length > 200;
+    const preview = full.slice(0, 200) + (hasMore ? '…' : '');
+    const viewUrl = getViewUrl ? getViewUrl(item) : null;
+    const postedBadge = labelPosted && item.posted_at
+      ? `<span class="feed-posted-badge"><i class="ph ph-check-circle"></i> Posted</span>` : '';
     return `
-      <div class="feed-card" data-id="${p.id}">
+      <div class="feed-card" data-id="${item.id}">
         <div class="feed-card-meta">
           <span class="feed-card-date"><i class="ph ph-clock"></i> ${date}</span>
           <div class="feed-card-badges">
-            ${p.category ? `<span class="feed-badge">${escHtml(p.category)}</span>` : ''}
-            ${p.tone     ? `<span class="feed-badge feed-badge--tone">${escHtml(p.tone)}</span>` : ''}
+            ${item.category ? `<span class="feed-badge">${escHtml(item.category)}</span>` : ''}
+            ${item.tone     ? `<span class="feed-badge feed-badge--tone">${escHtml(item.tone)}</span>` : ''}
+            ${postedBadge}
           </div>
         </div>
         <p class="feed-card-text" data-full="${escAttr(full)}" data-expanded="false">${escHtml(preview)}</p>
         ${hasMore ? `<button class="feed-card-expand btn-link" type="button">Show more</button>` : ''}
         <div class="feed-card-actions">
-          <button class="btn btn--ghost btn--xs feed-card-repost" data-content="${escAttr(full)}" title="Load into editor">
-            <i class="ph ph-pencil-simple"></i> Edit &amp; repost
-          </button>
-          ${viewUrl ? `<a class="btn btn--ghost btn--xs" href="${viewUrl}" target="_blank" rel="noopener">
-            <i class="ph ph-arrow-square-out"></i> View on LinkedIn
-          </a>` : ''}
+          ${getActions(item, full, viewUrl)}
         </div>
       </div>`;
   }).join('');
+}
 
-  // Expand / collapse
-  listEl.querySelectorAll('.feed-card-expand').forEach(btn => {
+function wireExpandCollapse(container) {
+  container.querySelectorAll('.feed-card-expand').forEach(btn => {
     btn.addEventListener('click', () => {
-      const card    = btn.closest('.feed-card');
-      const textEl  = card.querySelector('.feed-card-text');
+      const textEl  = btn.closest('.feed-card').querySelector('.feed-card-text');
       const expanded = textEl.dataset.expanded === 'true';
-      textEl.textContent = expanded
-        ? textEl.dataset.full.slice(0, 200) + '…'
-        : textEl.dataset.full;
+      textEl.textContent = expanded ? textEl.dataset.full.slice(0, 200) + '…' : textEl.dataset.full;
       textEl.dataset.expanded = expanded ? 'false' : 'true';
       btn.textContent = expanded ? 'Show more' : 'Show less';
     });
   });
+}
 
-  // Edit & repost
-  listEl.querySelectorAll('.feed-card-repost').forEach(btn => {
+function wireLoadIntoEditor(container) {
+  container.querySelectorAll('.feed-card-load').forEach(btn => {
     btn.addEventListener('click', () => {
       const editor = document.getElementById('post-text');
       if (editor) {
@@ -964,7 +974,97 @@ async function renderMyPostsFeed() {
         editor.focus();
         editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      ui.showToast('Post loaded into editor', 'success', 2000);
+      ui.showToast('Loaded into editor', 'success', 2000);
+    });
+  });
+}
+
+async function renderMyPostsFeed() {
+  const feed   = document.getElementById('my-posts-feed');
+  const listEl = document.getElementById('my-posts-feed-list');
+  if (!feed || !listEl) return;
+
+  const posts = await db.getPostHistory();
+  const drafts = await db.getDrafts();
+  const hasContent = posts.length > 0 || drafts.length > 0;
+
+  if (!hasContent) { feed.hidden = true; return; }
+  feed.hidden = false;
+  wireFeedTabs();
+
+  // Update Drafts tab badge count (unposted only)
+  const unposted = drafts.filter(d => !d.posted_at).length;
+  const draftsTab = document.getElementById('feed-tab-drafts');
+  if (draftsTab) {
+    draftsTab.innerHTML = `<i class="ph ph-file-text"></i> Drafts${unposted > 0 ? ` <span class="feed-tab-count">${unposted}</span>` : ''}`;
+  }
+
+  if (!posts.length) {
+    listEl.innerHTML = `<p class="feed-empty">No posts yet — published posts will appear here.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = buildFeedCards(posts, {
+    dateField:    'posted_at',
+    contentField: 'content',
+    getViewUrl:   p => p.post_urn ? `https://www.linkedin.com/feed/update/${encodeURIComponent(p.post_urn)}/` : null,
+    getActions:   (p, full, viewUrl) => `
+      <button class="btn btn--ghost btn--xs feed-card-load" data-content="${escAttr(full)}" title="Load into editor">
+        <i class="ph ph-pencil-simple"></i> Edit &amp; repost
+      </button>
+      ${viewUrl ? `<a class="btn btn--ghost btn--xs" href="${viewUrl}" target="_blank" rel="noopener">
+        <i class="ph ph-arrow-square-out"></i> View on LinkedIn
+      </a>` : ''}`,
+  });
+  wireExpandCollapse(listEl);
+  wireLoadIntoEditor(listEl);
+}
+
+async function renderMyDraftsFeed() {
+  const listEl = document.getElementById('my-drafts-feed-list');
+  if (!listEl) return;
+
+  const drafts = await db.getDrafts();
+
+  if (!drafts.length) {
+    listEl.innerHTML = `<p class="feed-empty">No drafts yet.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = buildFeedCards(drafts, {
+    dateField:    'updated_at',
+    contentField: 'title',   // list endpoint has title, not full content
+    labelPosted:  true,
+    getActions:   (d, _full, _viewUrl) => `
+      <button class="btn btn--ghost btn--xs feed-card-load feed-draft-load" data-draft-id="${d.id}" title="Load into editor">
+        <i class="ph ph-pencil-simple"></i> Edit
+      </button>
+      ${d.posted_at ? `<span class="feed-posted-label"><i class="ph ph-check-circle"></i> Already posted</span>` : ''}`,
+  });
+
+  wireExpandCollapse(listEl);
+
+  // Load draft into editor on Edit click (fetches full content)
+  listEl.querySelectorAll('.feed-draft-load').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id     = parseInt(btn.dataset.draftId, 10);
+      const draft  = await db.getDraft(id);
+      if (!draft) return;
+      const editor = document.getElementById('post-text');
+      if (editor) {
+        editor.innerHTML = escHtml(draft.content || '').replace(/\n/g, '<br>');
+        editor.dispatchEvent(new Event('input'));
+        editor.focus();
+        editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      // Set category/tone/topic
+      const catEl = document.getElementById('ai-category');
+      const toneEl = document.getElementById('ai-tone');
+      const topicEl = document.getElementById('ai-topic');
+      if (catEl && draft.category) catEl.value = draft.category;
+      if (toneEl && draft.tone)   toneEl.value = draft.tone;
+      if (topicEl && draft.topic) { topicEl.value = draft.topic; topicEl.dispatchEvent(new Event('input')); }
+      ui.showToast('Draft loaded into editor', 'success', 2000);
     });
   });
 }

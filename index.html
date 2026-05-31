@@ -249,12 +249,18 @@
               </div>
             </div>
 
-            <!-- My Posts feed -->
+            <!-- My Posts feed + Drafts tabs -->
             <div class="my-posts-feed" id="my-posts-feed" hidden>
-              <div class="my-posts-feed-header">
-                <i class="ph ph-newspaper"></i> My Posts
+              <div class="feed-tabs">
+                <button class="feed-tab feed-tab--active" id="feed-tab-posts" type="button">
+                  <i class="ph ph-newspaper"></i> My Posts
+                </button>
+                <button class="feed-tab" id="feed-tab-drafts" type="button">
+                  <i class="ph ph-file-text"></i> Drafts
+                </button>
               </div>
               <div id="my-posts-feed-list"></div>
+              <div id="my-drafts-feed-list" hidden></div>
             </div>
 
               </div><!-- /compose-main -->

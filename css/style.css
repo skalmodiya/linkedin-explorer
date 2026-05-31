@@ -1481,6 +1481,26 @@ select:disabled { opacity: .5; cursor: not-allowed; }
   font-size: .75rem;
   color: var(--color-text-muted);
 }
+.draft-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.draft-posted-badge {
+  font-size: .65rem;
+  font-weight: 600;
+  padding: .1em .45em;
+  border-radius: 99px;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: #16a34a;
+  border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: .2em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 .draft-delete {
   opacity: 0;
@@ -1584,16 +1604,40 @@ select:disabled { opacity: .5; cursor: not-allowed; }
 .my-posts-feed {
   margin-top: 1.5rem;
 }
-.my-posts-feed-header {
+.feed-tabs {
+  display: flex;
+  gap: .25rem;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: .75rem;
+}
+.feed-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: .5rem .875rem;
   font-size: .875rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-muted);
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: .4rem;
-  padding: 0 0 .75rem;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: .75rem;
+  gap: .35rem;
+  transition: color .15s, border-color .15s;
+}
+.feed-tab:hover { color: var(--color-text); }
+.feed-tab--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+.feed-tab-count {
+  font-size: .7rem;
+  font-weight: 700;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 99px;
+  padding: .05em .45em;
+  line-height: 1.4;
 }
 .feed-card {
   background: var(--color-surface);
@@ -1655,6 +1699,32 @@ select:disabled { opacity: .5; cursor: not-allowed; }
   margin-top: .35rem;
   padding-top: .5rem;
   border-top: 1px solid var(--color-border);
+}
+.feed-posted-badge {
+  font-size: .7rem;
+  font-weight: 600;
+  padding: .1em .5em;
+  border-radius: 99px;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: #16a34a;
+  border: 1px solid color-mix(in srgb, #22c55e 30%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: .2em;
+}
+.feed-posted-label {
+  font-size: .75rem;
+  color: #16a34a;
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  margin-left: auto;
+}
+.feed-empty {
+  font-size: .875rem;
+  color: var(--color-text-muted);
+  padding: .75rem 0;
+  text-align: center;
 }
 
 /* ── Post history panel ──────────────────────────────────── */
