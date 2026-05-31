@@ -310,9 +310,14 @@
                     <div class="ai-gen-row ai-gen-row--topic">
                       <div class="ai-topic-label-row">
                         <label class="ai-label" for="ai-topic">Topic</label>
-                        <button class="btn btn--ghost btn--xs ai-suggest-btn" id="btn-suggest-topics" type="button" title="Get AI topic suggestions">
-                          <i class="ph ph-sparkle"></i> Suggest
-                        </button>
+                        <div style="display:flex;gap:.35rem;">
+                          <button class="btn btn--ghost btn--xs ai-suggest-btn" id="btn-suggest-topics" type="button" title="Get AI topic suggestions">
+                            <i class="ph ph-sparkle"></i> Suggest
+                          </button>
+                          <button class="btn btn--ghost btn--xs" id="btn-reset-ai-fields" type="button" title="Reset Category, Tone and Topic">
+                            <i class="ph ph-arrow-counter-clockwise"></i> Reset
+                          </button>
+                        </div>
                       </div>
                       <textarea
                         class="input-styled ai-topic-textarea"

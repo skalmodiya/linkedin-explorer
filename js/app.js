@@ -795,6 +795,15 @@ function initAiPanel() {
 
   initTopicSuggestions();
 
+  // Reset Category, Tone & Topic
+  document.getElementById('btn-reset-ai-fields')?.addEventListener('click', () => {
+    const categoryEl = document.getElementById('ai-category');
+    const toneEl     = document.getElementById('ai-tone');
+    if (categoryEl) categoryEl.selectedIndex = 0;
+    if (toneEl)     toneEl.selectedIndex     = 0;
+    if (topicInput) { topicInput.value = ''; topicInput.dispatchEvent(new Event('input')); }
+  });
+
   // Generate button
   genBtn?.addEventListener('click', async () => {
     const topic    = topicInput?.value?.trim();
