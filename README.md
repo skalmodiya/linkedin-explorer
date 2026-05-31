@@ -35,8 +35,14 @@ A browser-based tool to log in with your LinkedIn account, compose and publish p
 - **15 categories** — Thought Leadership, Job/Career Update, Hot Take/Opinion, Case Study, Hiring, Gratitude, and more
 - **12 tones** — Professional, Storytelling, Bold & Direct, Data-driven, Motivational, and more
 - **Reset button** — clears Category, Tone and Topic back to defaults in one click
-- **Topic suggestions popup** — click ✨ Suggest to get 5 AI-generated topic ideas based on Category + Tone; optionally seed with your own free-text idea; draggable and resizable
+- **Topic suggestions popup** — click ✨ Suggest to get 5 AI-generated topic ideas based on Category + Tone; optionally seed with your own free-text idea; draggable and resizable. Click **More ideas** to load 5 additional unique ideas (previously shown ideas are passed to the LLM so it never repeats); the list grows and is scrollable
 - **Regenerate with feedback** — provide notes and regenerate without losing the original
+
+### My Posts (inline feed)
+- Published posts appear **directly below the Create Post box**, styled like a LinkedIn feed — no tab switching needed
+- Auto-refreshes immediately after every publish
+- Each card shows timestamp, category/tone badges, post preview with expand/collapse, **Edit & repost** (loads back into the editor), and **View on LinkedIn**
+- Only posts published via the Post button appear here — drafts are excluded
 
 ### Post History
 - Every post published from the app is stored locally and shown in the **History** tab
