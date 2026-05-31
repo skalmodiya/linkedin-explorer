@@ -277,8 +277,9 @@ function initComposer(authorSub) {
       document.getElementById('ai-regen-bar').hidden = true;
       clearActiveDraft();
 
-      // Refresh history tab
+      // Refresh history tab + inline feed
       initPostHistory();
+      renderMyPostsFeed();
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
@@ -328,6 +329,9 @@ function initComposer(authorSub) {
   // Wire AI settings modal + generation panel
   initAiSettings();
   initAiPanel();
+
+  // Render inline post feed below composer
+  renderMyPostsFeed();
 }
 
 // ── Editor char counter ───────────────────────────────────────
@@ -891,6 +895,78 @@ function applyGeneratedContent(content) {
   editor.dispatchEvent(new Event('input'));
   editor.focus();
   ui.hidePostResult();
+}
+
+// ── Inline My Posts Feed (below composer) ─────────────────────
+
+async function renderMyPostsFeed() {
+  const feed     = document.getElementById('my-posts-feed');
+  const listEl   = document.getElementById('my-posts-feed-list');
+  if (!feed || !listEl) return;
+
+  const posts = await db.getPostHistory();
+
+  if (!posts.length) {
+    feed.hidden = true;
+    return;
+  }
+
+  feed.hidden = false;
+  listEl.innerHTML = posts.map(p => {
+    const full     = p.content || '';
+    const date     = p.posted_at ? new Date(p.posted_at + 'Z').toLocaleString() : '—';
+    const viewUrl  = p.post_urn ? `https://www.linkedin.com/feed/update/${encodeURIComponent(p.post_urn)}/` : null;
+    const hasMore  = full.length > 200;
+    const preview  = full.slice(0, 200) + (hasMore ? '…' : '');
+    return `
+      <div class="feed-card" data-id="${p.id}">
+        <div class="feed-card-meta">
+          <span class="feed-card-date"><i class="ph ph-clock"></i> ${date}</span>
+          <div class="feed-card-badges">
+            ${p.category ? `<span class="feed-badge">${escHtml(p.category)}</span>` : ''}
+            ${p.tone     ? `<span class="feed-badge feed-badge--tone">${escHtml(p.tone)}</span>` : ''}
+          </div>
+        </div>
+        <p class="feed-card-text" data-full="${escAttr(full)}" data-expanded="false">${escHtml(preview)}</p>
+        ${hasMore ? `<button class="feed-card-expand btn-link" type="button">Show more</button>` : ''}
+        <div class="feed-card-actions">
+          <button class="btn btn--ghost btn--xs feed-card-repost" data-content="${escAttr(full)}" title="Load into editor">
+            <i class="ph ph-pencil-simple"></i> Edit &amp; repost
+          </button>
+          ${viewUrl ? `<a class="btn btn--ghost btn--xs" href="${viewUrl}" target="_blank" rel="noopener">
+            <i class="ph ph-arrow-square-out"></i> View on LinkedIn
+          </a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  // Expand / collapse
+  listEl.querySelectorAll('.feed-card-expand').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card    = btn.closest('.feed-card');
+      const textEl  = card.querySelector('.feed-card-text');
+      const expanded = textEl.dataset.expanded === 'true';
+      textEl.textContent = expanded
+        ? textEl.dataset.full.slice(0, 200) + '…'
+        : textEl.dataset.full;
+      textEl.dataset.expanded = expanded ? 'false' : 'true';
+      btn.textContent = expanded ? 'Show more' : 'Show less';
+    });
+  });
+
+  // Edit & repost
+  listEl.querySelectorAll('.feed-card-repost').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const editor = document.getElementById('post-text');
+      if (editor) {
+        editor.innerHTML = escHtml(btn.dataset.content).replace(/\n/g, '<br>');
+        editor.dispatchEvent(new Event('input'));
+        editor.focus();
+        editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      ui.showToast('Post loaded into editor', 'success', 2000);
+    });
+  });
 }
 
 // ── Post History Tab ──────────────────────────────────────────
