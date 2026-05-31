@@ -319,7 +319,7 @@ function initComposer(authorSub) {
     document.getElementById('ai-regen-bar').hidden = true;
   };
 
-  initDrafts(getComposerState, setComposerState);
+  initDrafts(getComposerState);
   initFormattingToolbar(editor);
 
   // Composer extras
