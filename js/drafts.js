@@ -153,6 +153,9 @@ async function loadDraft(id) {
     category: draft.category || '',
     tone:     draft.tone     || '',
   });
+
+  // Switch to Compose tab
+  document.querySelector('[role="tab"][data-tab="compose"]')?.click();
 }
 
 // ── Utilities ─────────────────────────────────────────────────
