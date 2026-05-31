@@ -24,6 +24,8 @@ function scheduleAutosave() {
 // Force-save immediately (called after Generate so the draft exists before tab switch)
 export async function saveNow() {
   if (!_serverOnline || !_getState) return;
+  // Cancel any pending debounced save to prevent a duplicate write
+  clearTimeout(_autosaveTimer);
   const state = _getState();
   if (!state.content || state.content.trim().length < 20) return;
   const saved = await db.saveDraft({ id: _activeDraftId, ...state });
