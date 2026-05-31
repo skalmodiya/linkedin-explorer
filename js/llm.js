@@ -132,12 +132,13 @@ export async function fetchLiveModels(provider, apiKey) {
 // ── Post generation ───────────────────────────────────────────
 
 /**
- * Suggest 5 LinkedIn post topic ideas.
+ * Suggest LinkedIn post topic ideas.
  * @param {string} category
  * @param {string} tone
- * @param {string} [freeText]  — optional free-text seed from the user
+ * @param {string} [freeText]    — optional free-text seed from the user
+ * @param {string[]} [exclude]   — ideas already shown, so LLM returns fresh ones
  */
-export async function suggestTopics(category, tone, freeText = '') {
+export async function suggestTopics(category, tone, freeText = '', exclude = []) {
   const { provider, model, key } = getConfig();
   if (!key) throw new Error('No API key configured. Click ✨ to set up AI.');
 
@@ -145,7 +146,10 @@ export async function suggestTopics(category, tone, freeText = '') {
 
   const parts = [`Category: ${category}`, `Tone: ${tone}`];
   if (freeText.trim()) parts.push(`My idea / context: ${freeText.trim()}`);
-  parts.push('\nSuggest 5 specific LinkedIn post topic ideas. Let the free-text idea (if provided) shape the suggestions — the category and tone are secondary guidance.');
+  if (exclude.length > 0) {
+    parts.push(`\nAlready suggested (do NOT repeat these):\n${exclude.map((e, i) => `${i + 1}. ${e}`).join('\n')}`);
+  }
+  parts.push('\nSuggest 5 NEW and DIFFERENT specific LinkedIn post topic ideas. Let the free-text idea (if provided) shape the suggestions — the category and tone are secondary guidance.');
   const user = parts.join('\n');
 
   let raw;

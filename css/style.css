@@ -1090,6 +1090,11 @@ pre { white-space: pre-wrap; word-break: break-all; }
   min-height: 0;
 }
 .topic-suggestion-item { padding: 0; }
+.topic-suggestion-item--new {
+  border-top: 1px dashed var(--color-border);
+  margin-top: .25rem;
+  padding-top: .25rem;
+}
 .topic-suggestion-btn {
   width: 100%;
   text-align: left;

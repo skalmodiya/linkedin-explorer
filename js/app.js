@@ -655,6 +655,8 @@ function initTopicSuggestions() {
   });
 
   // ── Helpers ───────────────────────────────────────────────
+  let _allSuggestions = []; // accumulates across More Ideas clicks
+
   function getSelections() {
     return {
       category: document.getElementById('ai-category')?.value || 'Thought Leadership',
@@ -677,6 +679,8 @@ function initTopicSuggestions() {
   function openPopup() {
     popup.hidden = false;
     positionPopup();
+    _allSuggestions = [];
+    list.innerHTML = '';
     fetchSuggestions();
   }
 
@@ -686,7 +690,7 @@ function initTopicSuggestions() {
 
   async function fetchSuggestions() {
     const { category, tone, freeText } = getSelections();
-    list.innerHTML = '';
+    const isMore = _allSuggestions.length > 0;
     const label = freeText
       ? `Generating ideas based on your input…`
       : `Finding ${category} ideas with a ${tone} tone…`;
@@ -703,25 +707,34 @@ function initTopicSuggestions() {
     }
 
     try {
-      const topics = await llm.suggestTopics(category, tone, freeText);
+      const topics = await llm.suggestTopics(category, tone, freeText, _allSuggestions);
       hint.hidden = true;
-      list.innerHTML = topics.map(t => `
-        <li class="topic-suggestion-item">
-          <button class="topic-suggestion-btn" type="button">${escHtml(t)}</button>
-        </li>
-      `).join('');
 
-      list.querySelectorAll('.topic-suggestion-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+      // Append new items; don't clear existing ones
+      const startIndex = _allSuggestions.length;
+      topics.forEach((t, i) => {
+        _allSuggestions.push(t);
+        const li = document.createElement('li');
+        li.className = 'topic-suggestion-item';
+        if (i === 0 && isMore) li.classList.add('topic-suggestion-item--new');
+        li.innerHTML = `<button class="topic-suggestion-btn" type="button">${escHtml(t)}</button>`;
+        li.querySelector('button').addEventListener('click', () => {
           if (topicInput) {
-            topicInput.value = btn.textContent;
+            topicInput.value = t;
             topicInput.dispatchEvent(new Event('input'));
             topicInput.focus();
           }
-          if (genBtn) genBtn.disabled = !btn.textContent.trim();
+          if (genBtn) genBtn.disabled = !t.trim();
           closePopup();
         });
+        list.appendChild(li);
       });
+
+      // Scroll the first new item into view when loading more
+      if (isMore) {
+        const newFirst = list.children[startIndex];
+        if (newFirst) newFirst.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     } catch (err) {
       hint.textContent = `Error: ${err.message}`;
       hint.hidden = false;
@@ -740,12 +753,19 @@ function initTopicSuggestions() {
 
   closeBtn?.addEventListener('click', closePopup);
   refreshBtn?.addEventListener('click', fetchSuggestions);
-  seedGo?.addEventListener('click', fetchSuggestions);
+  seedGo?.addEventListener('click', () => {
+    // New seed = fresh context, start over
+    _allSuggestions = [];
+    list.innerHTML = '';
+    fetchSuggestions();
+  });
 
-  // Ctrl+Enter / Enter (without shift) in seed input triggers fetch
+  // Ctrl+Enter / Enter (without shift) in seed input triggers fresh fetch
   seedInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      _allSuggestions = [];
+      list.innerHTML = '';
       fetchSuggestions();
     }
   });
