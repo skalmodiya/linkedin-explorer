@@ -198,9 +198,8 @@ export function initMoreOptions(getEditor) {
     });
   });
 
-  // Clear editor
-  document.getElementById('opt-clear-editor')?.addEventListener('click', () => {
-    closeAllPopovers();
+  // Clear editor — dedicated toolbar button
+  document.getElementById('btn-clear-editor')?.addEventListener('click', () => {
     const editor = getEditor();
     if (!editor) return;
     if (editor.innerHTML === '' || editor.innerText.trim() === '') return;
