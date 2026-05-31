@@ -33,6 +33,10 @@ export async function getDrafts() {
   return await apiFetch('GET', '/api/drafts') || [];
 }
 
+export async function getDraft(id) {
+  return await apiFetch('GET', `/api/drafts/${id}`);
+}
+
 export async function saveDraft({ id, content, topic, category, tone }) {
   if (id) {
     return await apiFetch('PUT', `/api/drafts/${id}`, { content, topic, category, tone });

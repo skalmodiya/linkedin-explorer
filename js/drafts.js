@@ -125,7 +125,7 @@ async function renderDraftsList() {
     card.addEventListener('click', async (e) => {
       if (e.target.closest('.draft-delete')) return;
       const id = parseInt(card.dataset.id, 10);
-      await loadDraft(id, drafts);
+      await loadDraft(id);
       closeDrawer();
     });
   });
@@ -142,14 +142,8 @@ async function renderDraftsList() {
   });
 }
 
-async function loadDraft(id, drafts) {
-  // Fetch full draft content (list only has summary fields)
-  let draft = drafts?.find(d => d.id === id);
-  if (!draft || !draft.content) {
-    // fetch full record
-    const all = await db.getDrafts();
-    draft = all.find(d => d.id === id);
-  }
+async function loadDraft(id) {
+  const draft = await db.getDraft(id);
   if (!draft) return;
 
   _activeDraftId = id;

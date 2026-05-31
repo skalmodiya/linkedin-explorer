@@ -292,6 +292,12 @@ function handleApi(req, res, method, pathname, body) {
   const draftM = pathname.match(/^\/api\/drafts\/(\d+)$/);
   if (draftM) {
     const id = parseInt(draftM[1], 10);
+    if (method === 'GET') {
+      const rows = dbAll('SELECT * FROM drafts WHERE id=?', [id]);
+      if (!rows.length) { jsonResp(res, 404, { error: 'not found' }); return; }
+      jsonResp(res, 200, rows[0]);
+      return;
+    }
     if (method === 'PUT') {
       const { content, topic, category, tone } = parsed;
       if (!content) { jsonResp(res, 400, { error: 'content required' }); return; }
