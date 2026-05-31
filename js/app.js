@@ -281,9 +281,10 @@ function initComposer(authorSub) {
       document.getElementById('ai-regen-bar').hidden = true;
       clearActiveDraft();
 
-      // Refresh history tab + inline feed
+      // Refresh history tab + inline feed, switch to My Posts tab
       initPostHistory();
-      renderMyPostsFeed();
+      await renderMyPostsFeed();
+      switchToPostsTab();
     } catch (err) {
       ui.showToast(err.message, 'error', 7000);
     } finally {
@@ -899,6 +900,9 @@ function applyGeneratedContent(content) {
   editor.dispatchEvent(new Event('input'));
   editor.focus();
   ui.hidePostResult();
+
+  // Autosave will fire in 3 s — switch to Drafts tab now so it's visible
+  renderMyPostsFeed().then(() => switchToDraftsTab());
 }
 
 // ── Inline My Posts Feed + Drafts tabs (below composer) ──────
@@ -908,19 +912,23 @@ let _feedTabsWired = false;
 function wireFeedTabs() {
   if (_feedTabsWired) return;
   _feedTabsWired = true;
-  document.getElementById('feed-tab-posts')?.addEventListener('click', () => {
-    document.getElementById('feed-tab-posts')?.classList.add('feed-tab--active');
-    document.getElementById('feed-tab-drafts')?.classList.remove('feed-tab--active');
-    document.getElementById('my-posts-feed-list').hidden  = false;
-    document.getElementById('my-drafts-feed-list').hidden = true;
-  });
-  document.getElementById('feed-tab-drafts')?.addEventListener('click', () => {
-    document.getElementById('feed-tab-drafts')?.classList.add('feed-tab--active');
-    document.getElementById('feed-tab-posts')?.classList.remove('feed-tab--active');
-    document.getElementById('my-posts-feed-list').hidden  = true;
-    document.getElementById('my-drafts-feed-list').hidden = false;
-    renderMyDraftsFeed();
-  });
+  document.getElementById('feed-tab-posts')?.addEventListener('click', switchToPostsTab);
+  document.getElementById('feed-tab-drafts')?.addEventListener('click', switchToDraftsTab);
+}
+
+function switchToDraftsTab() {
+  document.getElementById('feed-tab-drafts')?.classList.add('feed-tab--active');
+  document.getElementById('feed-tab-posts')?.classList.remove('feed-tab--active');
+  document.getElementById('my-posts-feed-list').hidden  = true;
+  document.getElementById('my-drafts-feed-list').hidden = false;
+  renderMyDraftsFeed();
+}
+
+function switchToPostsTab() {
+  document.getElementById('feed-tab-posts')?.classList.add('feed-tab--active');
+  document.getElementById('feed-tab-drafts')?.classList.remove('feed-tab--active');
+  document.getElementById('my-posts-feed-list').hidden  = false;
+  document.getElementById('my-drafts-feed-list').hidden = true;
 }
 
 function buildFeedCards(items, { dateField, contentField, getViewUrl, getActions, labelPosted }) {
